@@ -1,6 +1,11 @@
+extern "C"
+{
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
+#include <sys/resource.h>
+}
 #include "Socket.h"
 #include "DatagramSocket.h"
 extern "C"
@@ -14,7 +19,7 @@ using namespace android::net;
 ILCLIENT_T *client;
 TUNNEL_T tunnel[4];
 static COMPONENT_T *list[5];
-COMPONENT_T *video_decode = NULL, *video_scheduler = NULL, *video_render = NULL, *clock = NULL;
+COMPONENT_T *video_decode = NULL, *video_scheduler = NULL, *video_render = NULL, *omx_clock = NULL;
 int packet_size = 16<<10; // 16KB
 unsigned int data_len = 0;
 int status = 0;
@@ -66,11 +71,11 @@ static int initOMX() {
 	printf("5\n");
 
 	// create clock
-	if(status == 0 && ilclient_create_component(client, &clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+	if(status == 0 && ilclient_create_component(client, &omx_clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
 		status = -14;
 		return status;
 	}
-	list[2] = clock;
+	list[2] = omx_clock;
 
 	printf("6\n");
 
@@ -79,7 +84,7 @@ static int initOMX() {
 	cstate.nVersion.nVersion = OMX_VERSION;
 	cstate.eState = OMX_TIME_ClockStateWaitingForStartTime;
 	cstate.nWaitMask = 1;
-	if(clock != NULL && OMX_SetParameter(ILC_GET_HANDLE(clock), OMX_IndexConfigTimeClockState, &cstate) != OMX_ErrorNone) {
+	if(omx_clock != NULL && OMX_SetParameter(ILC_GET_HANDLE(omx_clock), OMX_IndexConfigTimeClockState, &cstate) != OMX_ErrorNone) {
 		status = -13;
 	}
 
@@ -95,13 +100,13 @@ static int initOMX() {
 
 	set_tunnel(tunnel, video_decode, 131, video_scheduler, 10);
 	set_tunnel(tunnel+1, video_scheduler, 11, video_render, 90);
-	set_tunnel(tunnel+2, clock, 80, video_scheduler, 12);
+	set_tunnel(tunnel+2, omx_clock, 80, video_scheduler, 12);
 
 	// setup clock tunnel first
 	if(status == 0 && ilclient_setup_tunnel(tunnel+2, 0, 0) != 0) {
 		status = -15;
 	} else {
-		ilclient_change_component_state(clock, OMX_StateExecuting);
+		ilclient_change_component_state(omx_clock, OMX_StateExecuting);
 	}
 
 	printf("9\n");
@@ -174,24 +179,26 @@ int main(int argc, char**argv)
 {
 	uint8_t buffer[4096];
 	
+	setpriority(PRIO_PROCESS, 0, -19);
+
 	if (initOMX() != 0) {
 		printf("Oops: OMX error\n");
 		return -1;
 	}
 
 	Socket* mSocket = new Socket();
-	if (!mSocket->connect("192.168.1.146", 1234)) {
+	if (!mSocket->connect("192.168.0.112", 1234)) {
 		printf("Error\n");
 		return -1;
 	}
 
-	char* optionsMessage = "OPTIONS rtsp://192.168.1.146:1234/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n";
+	char* optionsMessage = "OPTIONS rtsp://192.168.0.112:1234/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n";
 	mSocket->write(optionsMessage, strlen(optionsMessage));
 	memset(buffer, 0, 4096);
 	int32_t size = readFully(mSocket, buffer, 4096);
 	printf("OPTIONS: %s\n", buffer);
 
-	char* describeMessage = "DESCRIBE rtsp://192.168.1.146:1234/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n";
+	char* describeMessage = "DESCRIBE rtsp://192.168.0.112:1234/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n";
 	mSocket->write(describeMessage, strlen(describeMessage));	
 	memset(buffer, 0, 4096);
 	size = readFully(mSocket, buffer, 4096);
@@ -200,7 +207,7 @@ int main(int argc, char**argv)
 	DatagramSocket* rtpSocket = new DatagramSocket(56098);
 	DatagramSocket* rtcpSocket = new DatagramSocket(56099);
 
-	char* setupMessage = "SETUP rtsp://192.168.1.146:1234/Test.sdp/trackID=0 RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n";
+	char* setupMessage = "SETUP rtsp://192.168.0.112:1234/Test.sdp/trackID=0 RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n";
 	mSocket->write(setupMessage, strlen(setupMessage));	
 	memset(buffer, 0, 4096);
 	size = readFully(mSocket, buffer, 4096);
@@ -217,7 +224,7 @@ int main(int argc, char**argv)
 	sessionId[i] = '\0';
 
 	char* playMessage = new char[1024];
-	strcpy(playMessage, "PLAY rtsp://192.168.1.146:1234/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: ");
+	strcpy(playMessage, "PLAY rtsp://192.168.0.112:1234/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: ");
 	strcat(playMessage, sessionId);
 	strcat(playMessage, "\r\n\r\n");
 	mSocket->write(playMessage, strlen(playMessage));	
@@ -231,9 +238,9 @@ int main(int argc, char**argv)
 	uint8_t nalHeader;
 	bool startUnit = true;
 	int port_settings_changed = 0;
-	FILE *in;
-	in = fopen("test.h264", "rb");
-	printf("file: %x\n", in);
+
+	struct timespec now;
+	uint32_t t1, t2, dT;
 
 	while (true) {
 		int size = rtpSocket->recv(data, 4096);
@@ -285,18 +292,23 @@ int main(int argc, char**argv)
 		bool singleNalUnit = false;
 		uint8_t* h264Data = NULL;
 		unsigned nalType = data[payloadOffset] & 0x1F;
+		bool printDT = false;
+
 		if (nalType >= 1 && nalType <= 23) {
 			h264Data = &data[payloadOffset];
 			singleNalUnit = true;
 			nalUnitBegins = true;
-			printf("Single NAL unit with %d bytes of data\n", size - payloadOffset);
+//			printf("Single NAL unit with %d bytes of data\n", size - payloadOffset);
+			clock_gettime(CLOCK_REALTIME, &now);
+			t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
+			printDT = true;
 		} else if (nalType == 28) {
 			// FU-A
 			h264Data = &data[payloadOffset + 2];
 //			printf("Fragmented NAL unit with %d bytes of data\n", size - payloadOffset);
 			totalFUCount++;
 			if (startUnit || (data[payloadOffset + 1] & 0x80)) {
-				printf("New NAL unit begins...\n");
+//				printf("New NAL unit begins...\n");
 				uint32_t nalType = data[payloadOffset + 1] & 0x1f;
 				uint32_t nri = (data[payloadOffset + 0] >> 5) & 3;
 				nalHeader = (nri << 5) | nalType;
@@ -304,17 +316,39 @@ int main(int argc, char**argv)
 				startUnit = false;
 			}
 			if (data[payloadOffset + 1] & 0x40) {
-				printf("Fragmented NAL unit complete with %d fragments\n", totalFUCount);
+//				printf("Fragmented NAL unit complete with %d fragments\n", totalFUCount);
 				totalFUCount = 0;
+				clock_gettime(CLOCK_REALTIME, &now);
+				t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
+				printDT = true;
 			}
 		} else if (nalType == 24) {
 			printf("Oops\n");
+			continue;
+		} else {
+			printf("Oops...\n");
+			continue;
+		}
+		if (printDT) {
+			dT = t1 - t2;
+			t2 = t1;
+			printf("dT: %dms\n", dT);
+			fflush(stdout);
 		}
 
 		OMX_BUFFERHEADERTYPE *buf;
 		int first_packet = 1;
+
+		clock_gettime(CLOCK_REALTIME, &now);
+		uint32_t startTime = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
 		if ((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
 		{
+			clock_gettime(CLOCK_REALTIME, &now);
+			uint32_t stopTime = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
+			uint32_t diffTime = stopTime - startTime;
+			if (diffTime > 2) {
+				printf("ilclient_get_input_buffer: %dms\n", diffTime);
+			}
 			// feed data and wait until we get port settings changed
 			//printf("Buffer: %x\n", buf);
 			unsigned char *dest = buf->pBuffer;
@@ -337,8 +371,6 @@ int main(int argc, char**argv)
 			}
 			memcpy(dest + offset, h264Data, dataSize);
 			data_len += offset + dataSize;
-//			printf("Size: %d\n", dataSize);
-			//data_len += fread(dest, 1, size - payloadOffset - 2, in);
 
 			if(port_settings_changed == 0  &&
 			((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
