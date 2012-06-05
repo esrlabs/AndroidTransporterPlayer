@@ -18,10 +18,10 @@ endif
 
 JOBS=7
 
-CFLAGS			:= -isystem$(PREFIX)/include
+CFLAGS			:= -isystem$(PREFIX)/include -I$(SYSROOT)/opt/vc/include/ -I./ -I../libs -DHAVE_LIBOPENMAX=2 -DOMX -DOMX_SKIP64BIT -ftree-vectorize -pipe -DUSE_EXTERNAL_OMX -DHAVE_LIBBCM_HOST -DUSE_EXTERNAL_LIBBCM_HOST -DUSE_VCHIQ_ARM -Wno-psabi
 CXXFLAGS		:= $(CFLAGS)
 CPPFLAGS		:= $(CFLAGS)
-LDFLAGS			:= -L$(BUILDROOT)/lib
+LDFLAGS			:= -L$(BUILDROOT)/lib -L$(SYSROOT)/opt/vc/lib/ -L$(SYSROOT)/opt/vc/src/hello_pi/libs -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lilclient
 LD					:= $(TOOLCHAIN)/bin/$(HOST)-ld --sysroot=$(SYSROOT)
 CC					:= $(TOOLCHAIN)/bin/$(HOST)-gcc --sysroot=$(SYSROOT)
 CXX         := $(TOOLCHAIN)/bin/$(HOST)-g++ --sysroot=$(SYSROOT)
@@ -32,6 +32,6 @@ AR 					:= $(TOOLCHAIN)/bin/$(HOST)-ar
 CXXCP 			:= $(CXX) -E
 PATH 				:= $(PREFIX)/bin:$(BUILDROOT)/output/host/usr/bin:$(PATH)
 
-CFLAGS			+= -pipe -mfloat-abi=softfp -mcpu=arm1176jzf-s -fomit-frame-pointer -mabi=aapcs-linux -mtune=arm1176jzf-s -mfpu=vfp -Wno-psabi -mno-apcs-stack-check -O3 -mstructure-size-boundary=32 -mno-sched-prolog
-LDFLAGS			+= -L$(SDKSTAGE)/lib -L$(SDKSTAGE)/usr/lib -L$(SDKSTAGE)/opt/vc/lib/
-INCLUDES		+= -isystem$(SDKSTAGE)/staging/usr/include -isystem$(SDKSTAGE)/staging/opt/vc/include -isystem$(SYSROOT)/usr/include
+#CFLAGS			+= -pipe -mfloat-abi=softfp -mcpu=arm1176jzf-s -fomit-frame-pointer -mabi=aapcs-linux -mtune=arm1176jzf-s -mfpu=vfp -Wno-psabi -mno-apcs-stack-check -O3 -mstructure-size-boundary=32 -mno-sched-prolog
+#LDFLAGS			+= -L$(SDKSTAGE)/lib -L$(SDKSTAGE)/usr/lib -L$(SDKSTAGE)/opt/vc/lib/
+#INCLUDES		+= -isystem$(SDKSTAGE)/staging/usr/include -isystem$(SDKSTAGE)/staging/opt/vc/include -isystem$(SYSROOT)/usr/include
