@@ -326,7 +326,7 @@ int main(int argc, char**argv)
 			printf("Oops\n");
 			continue;
 		} else {
-			printf("Oops...\n");
+			printf("Unknown NAL Type: %d\n", nalType);
 			continue;
 		}
 		if (printDT) {
