@@ -1,0 +1,2 @@
+. ./envsetup.sh
+make

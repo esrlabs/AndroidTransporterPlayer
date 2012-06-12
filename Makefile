@@ -7,15 +7,15 @@ INCLUDES+=-I./
 
 SRC=Socket.cpp \
 	DatagramSocket.cpp \
-	RtpTest.cpp \
+	AndroidTransporterPlayer.cpp \
 
 OBJS+=$(filter %.o,$(SRC:.cpp=.o))
 
-all: RtpTest
+all: AndroidTransporterPlayer
 
 %.o: %.cpp
 	@rm -f $@ 
 	$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations
 
-RtpTest: $(OBJS)
-	$(CXX) $(LDFLAGS) -o RtpTest -Wl,--whole-archive $(OBJS) -Wl,--no-whole-archive -rdynamic -lilclient
+AndroidTransporterPlayer: $(OBJS)
+	$(CXX) $(LDFLAGS) -o AndroidTransporterPlayer -Wl,--whole-archive $(OBJS) -Wl,--no-whole-archive -rdynamic -lilclient

@@ -1,9 +1,9 @@
 USE_BUILDROOT=1
 
 ifeq ($(USE_BUILDROOT), 1)
-BUILDROOT	:=/home/daniel/Projects/Raspberry-Pi
+BUILDROOT	:=..
 SDKSTAGE	:=$(BUILDROOT)/rootfs
-TARGETFS	:=$(BUILDROOT)/out/raspberry-pi
+TARGETFS	:=$(BUILDROOT)/rootfs
 TOOLCHAIN	:=$(BUILDROOT)/tools/arm-bcm2708/linux-x86
 HOST	    :=arm-bcm2708-linux-gnueabi
 SYSROOT		:=$(BUILDROOT)/rootfs
@@ -18,7 +18,7 @@ endif
 
 JOBS=7
 
-CFLAGS			:= -isystem$(PREFIX)/include -I$(SYSROOT)/opt/vc/include/ -I./ -I../libs -DHAVE_LIBOPENMAX=2 -DOMX -DOMX_SKIP64BIT -ftree-vectorize -pipe -DUSE_EXTERNAL_OMX -DHAVE_LIBBCM_HOST -DUSE_EXTERNAL_LIBBCM_HOST -DUSE_VCHIQ_ARM -Wno-psabi
+CFLAGS			:= -isystem$(PREFIX)/include -I$(SYSROOT)/opt/vc/include/ -I./ -I$(SYSROOT)/opt/vc/src/hello_pi/libs -DHAVE_LIBOPENMAX=2 -DOMX -DOMX_SKIP64BIT -ftree-vectorize -pipe -DUSE_EXTERNAL_OMX -DHAVE_LIBBCM_HOST -DUSE_EXTERNAL_LIBBCM_HOST -DUSE_VCHIQ_ARM -Wno-psabi
 CXXFLAGS		:= $(CFLAGS)
 CPPFLAGS		:= $(CFLAGS)
 LDFLAGS			:= -L$(BUILDROOT)/lib -L$(SYSROOT)/opt/vc/lib/ -L$(SYSROOT)/opt/vc/src/hello_pi/libs -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lilclient

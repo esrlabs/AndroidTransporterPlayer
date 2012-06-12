@@ -302,6 +302,11 @@ int main(int argc, char**argv)
 			clock_gettime(CLOCK_REALTIME, &now);
 			t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
 			printDT = true;
+			uint32_t nri = (data[payloadOffset] >> 5) & 3;
+			printf("NAL type: %d %d\n", nalType, nri);
+			if (nalType != 7 && nalType != 8) {
+				continue;
+			}
 		} else if (nalType == 28) {
 			// FU-A
 			h264Data = &data[payloadOffset + 2];
@@ -314,6 +319,9 @@ int main(int argc, char**argv)
 				nalHeader = (nri << 5) | nalType;
 				nalUnitBegins = true;
 				startUnit = false;
+				if (nalType == 7 || nalType == 8) {
+					printf("FU NAL type: %d %d\n", nalType, nri);
+				}
 			}
 			if (data[payloadOffset + 1] & 0x40) {
 //				printf("Fragmented NAL unit complete with %d fragments\n", totalFUCount);
@@ -332,8 +340,8 @@ int main(int argc, char**argv)
 		if (printDT) {
 			dT = t1 - t2;
 			t2 = t1;
-			printf("dT: %dms\n", dT);
-			fflush(stdout);
+//			printf("dT: %dms\n", dT);
+//			fflush(stdout);
 		}
 
 		OMX_BUFFERHEADERTYPE *buf;
