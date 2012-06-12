@@ -24,6 +24,8 @@ int packet_size = 16<<10; // 16KB
 unsigned int data_len = 0;
 int status = 0;
 
+// vlc -vvv Ice\ Age\ 4\ Trailer.mp4 --sout '#rtp{sdp=rtsp://192.168.0.113:1234/Test.sdp}'
+
 static int initOMX() {
 	OMX_VIDEO_PARAM_PORTFORMATTYPE format;
 	OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
@@ -187,18 +189,18 @@ int main(int argc, char**argv)
 	}
 
 	Socket* mSocket = new Socket();
-	if (!mSocket->connect("192.168.0.112", 1234)) {
+	if (!mSocket->connect("192.168.0.113", 1234)) {
 		printf("Error\n");
 		return -1;
 	}
 
-	char* optionsMessage = "OPTIONS rtsp://192.168.0.112:1234/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n";
+	char* optionsMessage = "OPTIONS rtsp://192.168.0.113:1234/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n";
 	mSocket->write(optionsMessage, strlen(optionsMessage));
 	memset(buffer, 0, 4096);
 	int32_t size = readFully(mSocket, buffer, 4096);
 	printf("OPTIONS: %s\n", buffer);
 
-	char* describeMessage = "DESCRIBE rtsp://192.168.0.112:1234/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n";
+	char* describeMessage = "DESCRIBE rtsp://192.168.0.113:1234/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n";
 	mSocket->write(describeMessage, strlen(describeMessage));	
 	memset(buffer, 0, 4096);
 	size = readFully(mSocket, buffer, 4096);
@@ -207,7 +209,7 @@ int main(int argc, char**argv)
 	DatagramSocket* rtpSocket = new DatagramSocket(56098);
 	DatagramSocket* rtcpSocket = new DatagramSocket(56099);
 
-	char* setupMessage = "SETUP rtsp://192.168.0.112:1234/Test.sdp/trackID=0 RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n";
+	char* setupMessage = "SETUP rtsp://192.168.0.113:1234/Test.sdp/trackID=0 RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n";
 	mSocket->write(setupMessage, strlen(setupMessage));	
 	memset(buffer, 0, 4096);
 	size = readFully(mSocket, buffer, 4096);
@@ -224,7 +226,7 @@ int main(int argc, char**argv)
 	sessionId[i] = '\0';
 
 	char* playMessage = new char[1024];
-	strcpy(playMessage, "PLAY rtsp://192.168.0.112:1234/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: ");
+	strcpy(playMessage, "PLAY rtsp://192.168.0.113:1234/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: ");
 	strcat(playMessage, sessionId);
 	strcat(playMessage, "\r\n\r\n");
 	mSocket->write(playMessage, strlen(playMessage));	
