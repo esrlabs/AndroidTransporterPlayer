@@ -306,9 +306,9 @@ int main(int argc, char**argv)
 			printDT = true;
 			uint32_t nri = (data[payloadOffset] >> 5) & 3;
 			printf("NAL type: %d %d\n", nalType, nri);
-			if (nalType != 7 && nalType != 8) {
-				continue;
-			}
+//			if (nalType != 7 && nalType != 8) {
+//				continue;
+//			}
 		} else if (nalType == 28) {
 			// FU-A
 			h264Data = &data[payloadOffset + 2];
@@ -370,6 +370,7 @@ int main(int argc, char**argv)
 				if (!singleNalUnit) {
 					memcpy(dest + offset, &nalHeader, 1);
 					offset += 1;
+//					printf("FU NAL type: %d\n", nalHeader & 0x1f);
 //					printf("Added NAL unit header: 0x%02X\n", nalHeader);
 				}
 			}
