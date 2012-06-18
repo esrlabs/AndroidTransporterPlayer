@@ -239,19 +239,17 @@ int main(int argc, char**argv)
 		}
 
 		bool nalUnitBegins = false;
-		bool singleNalUnit = false;
 		uint8_t* h264Data = NULL;
-		unsigned nalType = rtpPacketData[payloadOffset] & 0x1F;
+		unsigned nalUnitType = rtpPacketData[payloadOffset] & 0x1F;
 		bool printDT = false;
 		int status = 0;
 
-		if (nalType >= 1 && nalType <= 23) {
+		if (nalUnitType >= 1 && nalUnitType <= 23) {
 			h264Data = &rtpPacketData[payloadOffset];
-			singleNalUnit = true;
 			nalUnitBegins = true;
 			uint32_t nri = (rtpPacketData[payloadOffset] >> 5) & 3;
-			printf("NAL type: %d %d\n", nalType, nri);
-		} else if (nalType == 28) { // FU-A
+			printf("NAL type: %d %d\n", nalUnitType, nri);
+		} else if (nalUnitType == 28) { // FU-A
 			h264Data = &rtpPacketData[payloadOffset + 2];
 			if (startUnit || (rtpPacketData[payloadOffset + 1] & 0x80)) {
 				uint32_t nalType = rtpPacketData[payloadOffset + 1] & 0x1f;
@@ -263,11 +261,11 @@ int main(int argc, char**argv)
 			}
 			if (rtpPacketData[payloadOffset + 1] & 0x40) {
 			}
-		} else if (nalType == 24) {
+		} else if (nalUnitType == 24) {
 			printf("Oops\n");
 			continue;
 		} else {
-			printf("Unknown NAL Type: %d\n", nalType);
+			printf("Unknown NAL Type: %d\n", nalUnitType);
 			continue;
 		}
 
@@ -284,7 +282,7 @@ int main(int argc, char**argv)
 			if (nalUnitBegins) {
 				memcpy(dest, "\x00\x00\x00\x01", 4);
 				offset += 4;
-				if (!singleNalUnit) {
+				if (nalUnitType == 28) { // FU-A
 					memcpy(dest + offset, &nalHeader, 1);
 					offset += 1;
 //					printf("FU NAL type: %d\n", nalHeader & 0x1f);
@@ -292,7 +290,7 @@ int main(int argc, char**argv)
 				}
 			}
 			uint32_t dataSize;
-			if (singleNalUnit) {
+			if (nalUnitType >= 1 && nalUnitType <= 23) {
 				dataSize = rtpPacketSize - payloadOffset;
 			} else {
 				dataSize = rtpPacketSize - payloadOffset - 2;
