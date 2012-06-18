@@ -5,6 +5,7 @@
 #include <time.h>
 #include <sys/resource.h>
 #include "RtspSocket.h"
+#include "android/lang/String.h"
 #include "android/net/DatagramSocket.h"
 extern "C" {
 #include "bcm_host.h"
@@ -12,6 +13,7 @@ extern "C" {
 }
 
 using namespace android::os;
+using namespace android::lang;
 using namespace android::net;
 
 ILCLIENT_T *client;
@@ -124,10 +126,10 @@ static int initOMX() {
 	}
 }
 
-static int finalizeOMX() {
+static void finalizeOMX() {
 	ilclient_disable_tunnel(tunnel);
-	ilclient_disable_tunnel(tunnel+1);
-	ilclient_disable_tunnel(tunnel+2);
+	ilclient_disable_tunnel(tunnel + 1);
+	ilclient_disable_tunnel(tunnel + 2);
 	ilclient_teardown_tunnels(tunnel);
 
 	ilclient_state_transition(list, OMX_StateIdle);
@@ -146,7 +148,7 @@ int main(int argc, char**argv)
 	char* strPort = "9000";
 
 	if (argc < 2) {
-		printf("Usage: <IP-Address> <Port>\n");
+		printf("Usage: <IP-Address> [<Port>]\n");
 		return -1;
 	}
 	strIpAddress = argv[1];
@@ -154,12 +156,11 @@ int main(int argc, char**argv)
 		strPort = argv[2];
 	}
 	uint16_t port = atoi(strPort);
-
-	uint8_t buffer[4096];
 	
 	setpriority(PRIO_PROCESS, 0, -19);
 
 	if (initOMX() != 0) {
+		printf("OMX init failed!\n");
 		return -1;
 	}
 
@@ -169,65 +170,42 @@ int main(int argc, char**argv)
 		return -1;
 	}
 
-	char* message = new char[1024];
-	memset(message, 0, 1024);
-	strcpy(message, "OPTIONS rtsp://");
-	strcat(message, strIpAddress);
-	strcat(message, ":");
-	strcat(message, strPort);
-	strcat(message, "/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n");
-	mSocket->write(message, strlen(message));
-	memset(buffer, 0, 4096);
-	int32_t size = mSocket->readPacket(buffer, 4096);
-	printf("OPTIONS: %s\n", buffer);
+	uint8_t rtspResponse[4096];
 
-	memset(message, 0, 1024);
-	strcpy(message, "DESCRIBE rtsp://");
-	strcat(message, strIpAddress);
-	strcat(message, ":");
-	strcat(message, strPort);
-	strcat(message, "/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n");
-	mSocket->write(message, strlen(message));
-	memset(buffer, 0, 4096);
-	size = mSocket->readPacket(buffer, 4096);
-	printf("DESCRIBE: %s\n", buffer);
+	String optionsMessage = String::format("OPTIONS rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n", strIpAddress, strPort);
+	mSocket->write(optionsMessage.c_str(), optionsMessage.size());
+	int32_t size = mSocket->readPacket(rtspResponse, 4096);
+	rtspResponse[size] = '\0';
+	printf("OPTIONS: %s\n", rtspResponse);
+
+	String describeMessage = String::format("DESCRIBE rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
+	mSocket->write(describeMessage.c_str(), describeMessage.size());
+	size = mSocket->readPacket(rtspResponse, 4096);
+	rtspResponse[size] = '\0';
+	printf("DESCRIBE: %s\n", rtspResponse);
 
 	sp<DatagramSocket> rtpSocket = new DatagramSocket(56098);
 	sp<DatagramSocket> rtcpSocket = new DatagramSocket(56099);
 
-	memset(message, 0, 1024);
-	strcpy(message, "SETUP rtsp://");
-	strcat(message, strIpAddress);
-	strcat(message, ":");
-	strcat(message, strPort);
-	strcat(message, "/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n");
-	mSocket->write(message, strlen(message));
-	memset(buffer, 0, 4096);
-	size = mSocket->readPacket(buffer, 4096);
-	printf("SETUP: %s\n", buffer);
+	String setupMessage = String::format("SETUP rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n", strIpAddress, strPort);
+	mSocket->write(setupMessage.c_str(), setupMessage.size());
+	size = mSocket->readPacket(rtspResponse, 4096);
+	rtspResponse[size] = '\0';
+	printf("SETUP: %s\n", rtspResponse);
 	char* session = "Session: ";
-	session = strstr((char*) buffer, session);
+	session = strstr((char*) rtspResponse, session);
 	session += strlen("Session: ");
 	int i = 0;
 	while (*(session + i) != '\r') {
 		i++;	
 	}
-	char* sessionId = new char[i + 1];
-	memcpy(sessionId, session, i);
-	sessionId[i] = '\0';
+	String sessionId(session, i);
 
-	memset(message, 0, 1024);
-	strcpy(message, "PLAY rtsp://");
-	strcat(message, strIpAddress);
-	strcat(message, ":");
-	strcat(message, strPort);
-	strcat(message, "/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: ");
-	strcat(message, sessionId);
-	strcat(message, "\r\n\r\n");
-	mSocket->write(message, strlen(message));
-	memset(buffer, 0, 4096);
-	size = mSocket->readPacket(buffer, 4096);
-	printf("PLAY: %s\n", buffer);
+	String playMessage = String::format("PLAY rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
+	mSocket->write(playMessage.c_str(), playMessage.size());
+	size = mSocket->readPacket(rtspResponse, 4096);
+	rtspResponse[size] = '\0';
+	printf("PLAY: %s\n", rtspResponse);
 
 	uint8_t data[4096];
 	printf("Waiting for H.264 data...\n");
