@@ -193,6 +193,7 @@ int main(int argc, char**argv)
 
 	int port_settings_changed = 0;
 	unsigned int data_len = 0;
+	int first_packet = 1;
 
 	while (true) {
 		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
@@ -265,14 +266,10 @@ int main(int argc, char**argv)
 			continue;
 		}
 
-		OMX_BUFFERHEADERTYPE *buf;
-		int first_packet = 1;
+		OMX_BUFFERHEADERTYPE* omxBuffer;
 
-		if ((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
-		{
-			// feed rtpPacketData and wait until we get port settings changed
-			//printf("Buffer: %x\n", buf);
-			unsigned char *dest = buf->pBuffer;
+		if ((omxBuffer = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) {
+			unsigned char *dest = omxBuffer->pBuffer;
 
 			uint32_t offset = 0;
 			if (startCode) {
@@ -319,19 +316,19 @@ int main(int argc, char**argv)
 			if(!data_len)
 				break;
 
-			buf->nFilledLen = data_len;
+			omxBuffer->nFilledLen = data_len;
 			data_len = 0;
 
-			buf->nOffset = 0;
+			omxBuffer->nOffset = 0;
 			if(first_packet)
 			{
-				buf->nFlags = OMX_BUFFERFLAG_STARTTIME;
+				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
 				first_packet = 0;
 			}
 			else
-				buf->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
 
-			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), buf) != OMX_ErrorNone)
+			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone)
 			{
 				status = -6;
 				break;
@@ -340,10 +337,10 @@ int main(int argc, char**argv)
 
 //		printf("Done\n");
 //
-//		buf->nFilledLen = 0;
-//		buf->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
+//		omxBuffer->nFilledLen = 0;
+//		omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
 //
-//		if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), buf) != OMX_ErrorNone)
+//		if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone)
 //		status = -20;
 //
 //		// wait for EOS from render
