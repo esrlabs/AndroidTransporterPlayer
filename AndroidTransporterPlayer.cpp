@@ -191,9 +191,9 @@ int main(int argc, char**argv)
 	uint8_t rtpPacketData[4096];
 	int rtpPacketSize;
 
-	int port_settings_changed = 0;
-	unsigned int data_len = 0;
-	int first_packet = 1;
+	bool portSettingsChanged = false;
+	bool firstPacket = true;
+	unsigned int dataSize = 0;
 
 	while (true) {
 		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
@@ -240,7 +240,6 @@ int main(int argc, char**argv)
 		uint8_t* h264Data = NULL;
 		bool startCode = false;
 		uint8_t nalUnitHeader;
-		int status = 0;
 
 		if (nalUnitType >= 1 && nalUnitType <= 23) {
 			h264Data = &rtpPacketData[payloadOffset];
@@ -269,69 +268,62 @@ int main(int argc, char**argv)
 		OMX_BUFFERHEADERTYPE* omxBuffer;
 
 		if ((omxBuffer = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) {
-			unsigned char *dest = omxBuffer->pBuffer;
-
+			unsigned char* pBuffer = omxBuffer->pBuffer;
 			uint32_t offset = 0;
+
 			if (startCode) {
-				memcpy(dest, "\x00\x00\x00\x01", 4);
+				memcpy(pBuffer, "\x00\x00\x00\x01", 4);
 				offset += 4;
 				if (nalUnitType == 28) { // FU-A
-					memcpy(dest + offset, &nalUnitHeader, 1);
+					memcpy(pBuffer + offset, &nalUnitHeader, 1);
 					offset += 1;
 				}
 			}
-			uint32_t dataSize;
+			uint32_t h264DataSize;
 			if (nalUnitType >= 1 && nalUnitType <= 23) {
-				dataSize = rtpPacketSize - payloadOffset;
+				h264DataSize = rtpPacketSize - payloadOffset;
 			} else {
-				dataSize = rtpPacketSize - payloadOffset - 2;
+				h264DataSize = rtpPacketSize - payloadOffset - 2;
 			}
-			memcpy(dest + offset, h264Data, dataSize);
-			data_len += offset + dataSize;
+			memcpy(pBuffer + offset, h264Data, h264DataSize);
+			dataSize += offset + h264DataSize;
 
-			if(port_settings_changed == 0  &&
-			((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-			 (data_len == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
-													   ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0)))
-			{
-				port_settings_changed = 1;
+			if (!portSettingsChanged  &&
+					((dataSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+					 (dataSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+							 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
+				portSettingsChanged = true;
 
-				if(ilclient_setup_tunnel(tunnel, 0, 0) != 0)
-				{
-				   status = -7;
-				   break;
+				if(ilclient_setup_tunnel(tunnel, 0, 0) != 0) {
+				   return -1;
 				}
 
 				ilclient_change_component_state(video_scheduler, OMX_StateExecuting);
 
 				// now setup tunnel to video_render
-				if(ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0)
-				{
-				   status = -12;
-				   break;
+				if(ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0) {
+				   return -2;
 				}
 
 				ilclient_change_component_state(video_render, OMX_StateExecuting);
 			}
-			if(!data_len)
-				break;
 
-			omxBuffer->nFilledLen = data_len;
-			data_len = 0;
+			if (dataSize == 0)
+				break;
 
 			omxBuffer->nOffset = 0;
-			if(first_packet)
-			{
-				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
-				first_packet = 0;
-			}
-			else
-				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+			omxBuffer->nFilledLen = dataSize;
+			dataSize = 0;
 
-			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone)
-			{
-				status = -6;
-				break;
+			if(firstPacket) {
+				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
+				firstPacket = false;
+			} else {
+				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+			}
+
+			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone) {
+				return -3;
 			}
 		}
 
