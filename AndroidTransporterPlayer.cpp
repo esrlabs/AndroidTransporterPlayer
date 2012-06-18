@@ -16,58 +16,47 @@ using namespace android::os;
 using namespace android::lang;
 using namespace android::net;
 
-ILCLIENT_T *client;
-TUNNEL_T tunnel[4];
-static COMPONENT_T *list[5];
-COMPONENT_T *video_decode = NULL, *video_scheduler = NULL, *video_render = NULL, *omx_clock = NULL;
-int packet_size = 16<<10; // 16KB
-unsigned int data_len = 0;
-int status = 0;
-
-// vlc -vvv Ice\ Age\ 4\ Trailer.mp4 --sout '#rtp{sdp=rtsp://192.168.178.46:9000/Test.sdp}'
+static TUNNEL_T tunnel[4];
+static COMPONENT_T* list[5];
+static ILCLIENT_T* client;
+static COMPONENT_T *video_decode = NULL, *video_scheduler = NULL, *video_render = NULL, *omx_clock = NULL;
 
 static int initOMX() {
 	OMX_VIDEO_PARAM_PORTFORMATTYPE format;
 	OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
-	unsigned char *data = NULL;
-	int find_start_codes = 0;
+	unsigned char* data = NULL;
+
+	printf("Initializing OMX...\n");
 
 	bcm_host_init();
 
 	memset(list, 0, sizeof(list));
 	memset(tunnel, 0, sizeof(tunnel));
 
-	printf("Initializing OMX...\n");
-
-	if((client = ilclient_init()) == NULL)
-	{
-		return -3;
+	if ((client = ilclient_init()) == NULL) {
+		return -1;
 	}
 
-	if(OMX_Init() != OMX_ErrorNone)
-	{
+	if (OMX_Init() != OMX_ErrorNone) {
 		ilclient_destroy(client);
-		return -4;
+		return -2;
 	}
 
 	// create video_decode
-	if(ilclient_create_component(client, &video_decode, "video_decode", (ILCLIENT_CREATE_FLAGS_T)(ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS)) != 0) {
-		status = -14;
-		return status;
+	if (ilclient_create_component(client, &video_decode, "video_decode", (ILCLIENT_CREATE_FLAGS_T)(ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS)) != 0) {
+		return -3;
 	}
 	list[0] = video_decode;
 
 	// create video_render
-	if(status == 0 && ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
-		status = -14;
-		return status;
+	if (ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+		return -4;
 	}
 	list[1] = video_render;
 
 	// create clock
-	if(status == 0 && ilclient_create_component(client, &omx_clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
-		status = -14;
-		return status;
+	if (ilclient_create_component(client, &omx_clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+		return -5;
 	}
 	list[2] = omx_clock;
 
@@ -76,13 +65,13 @@ static int initOMX() {
 	cstate.nVersion.nVersion = OMX_VERSION;
 	cstate.eState = OMX_TIME_ClockStateWaitingForStartTime;
 	cstate.nWaitMask = 1;
-	if(omx_clock != NULL && OMX_SetParameter(ILC_GET_HANDLE(omx_clock), OMX_IndexConfigTimeClockState, &cstate) != OMX_ErrorNone) {
-		status = -13;
+	if (OMX_SetParameter(ILC_GET_HANDLE(omx_clock), OMX_IndexConfigTimeClockState, &cstate) != OMX_ErrorNone) {
+		return -6;
 	}
 
 	// create video_scheduler
-	if(status == 0 && ilclient_create_component(client, &video_scheduler, "video_scheduler", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
-		status = -14;
+	if (ilclient_create_component(client, &video_scheduler, "video_scheduler", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+		return -7;
 	}
 	list[3] = video_scheduler;
 
@@ -91,15 +80,13 @@ static int initOMX() {
 	set_tunnel(tunnel+2, omx_clock, 80, video_scheduler, 12);
 
 	// setup clock tunnel first
-	if(status == 0 && ilclient_setup_tunnel(tunnel+2, 0, 0) != 0) {
-		status = -15;
+	if (ilclient_setup_tunnel(tunnel+2, 0, 0) != 0) {
+		return -8;
 	} else {
 		ilclient_change_component_state(omx_clock, OMX_StateExecuting);
 	}
 
-	if(status == 0) {
-		ilclient_change_component_state(video_decode, OMX_StateIdle);
-	}
+	ilclient_change_component_state(video_decode, OMX_StateIdle);
 
 	memset(&format, 0, sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE));
 	format.nSize = sizeof(OMX_VIDEO_PARAM_PORTFORMATTYPE);
@@ -107,22 +94,14 @@ static int initOMX() {
 	format.nPortIndex = 130;
 	format.eCompressionFormat = OMX_VIDEO_CodingAVC;
 
-	if(status == 0 &&
-		OMX_SetParameter(ILC_GET_HANDLE(video_decode), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
-		ilclient_enable_port_buffers(video_decode, 130, NULL, NULL, NULL) == 0)
-	{
-	  OMX_BUFFERHEADERTYPE *buf;
-	  int port_settings_changed = 0;
-	  int first_packet = 1;
-
+	if (OMX_SetParameter(ILC_GET_HANDLE(video_decode), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
+			ilclient_enable_port_buffers(video_decode, 130, NULL, NULL, NULL) == 0) {
 	  ilclient_change_component_state(video_decode, OMX_StateExecuting);
 	  printf("OMX init done.\n");
 	  return 0;
-	}
-	else
-	{
+	} else {
 		printf("OMX init failed!\n");
-		return -17;
+		return -9;
 	}
 }
 
@@ -207,6 +186,7 @@ int main(int argc, char**argv)
 	rtspResponse[size] = '\0';
 	printf("PLAY: %s\n", rtspResponse);
 
+
 	uint8_t data[4096];
 	printf("Waiting for H.264 data...\n");
 	size_t totalFUCount = 0;
@@ -217,6 +197,8 @@ int main(int argc, char**argv)
 	struct timespec now;
 	uint32_t t1, t2, dT;
 	uint32_t time1, time2;
+
+	unsigned int data_len = 0;
 
 	while (true) {
 		int size = rtpSocket->recv(data, 4096);
@@ -269,6 +251,7 @@ int main(int argc, char**argv)
 		uint8_t* h264Data = NULL;
 		unsigned nalType = data[payloadOffset] & 0x1F;
 		bool printDT = false;
+		int status = 0;
 
 		if (nalType >= 1 && nalType <= 23) {
 			h264Data = &data[payloadOffset];
@@ -295,9 +278,9 @@ int main(int argc, char**argv)
 				nalHeader = (nri << 5) | nalType;
 				nalUnitBegins = true;
 				startUnit = false;
-				if (nalType == 7 || nalType == 8) {
+//				if (nalType == 7 || nalType == 8) {
 					printf("FU NAL type: %d %d\n", nalType, nri);
-				}
+//				}
 			}
 			if (data[payloadOffset + 1] & 0x40) {
 //				printf("Fragmented NAL unit complete with %d fragments\n", totalFUCount);
@@ -306,11 +289,11 @@ int main(int argc, char**argv)
 				t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
 				printDT = true;
 
-				time1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
-				uint32_t deltaT = time1 - time2;
-				printf("dT: %dms\n", deltaT);
-				fflush(stdout);
-				time2 = time1;
+//				time1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
+//				uint32_t deltaT = time1 - time2;
+//				printf("dT: %dms\n", deltaT);
+//				fflush(stdout);
+//				time2 = time1;
 			}
 		} else if (nalType == 24) {
 			printf("Oops\n");
@@ -430,4 +413,6 @@ int main(int argc, char**argv)
 	}
 
 	finalizeOMX();
+
+	return 0;
 }
