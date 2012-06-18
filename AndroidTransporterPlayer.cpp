@@ -301,14 +301,15 @@ int main(int argc, char**argv)
 
 				// now setup tunnel to video_render
 				if(ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0) {
-				   return -2;
+				   break;
 				}
 
 				ilclient_change_component_state(video_render, OMX_StateExecuting);
 			}
 
-			if (omxBufferFillSize == 0)
+			if (omxBufferFillSize == 0) {
 				break;
+			}
 
 			omxBuffer->nOffset = 0;
 			omxBuffer->nFilledLen = omxBufferFillSize;
@@ -322,7 +323,7 @@ int main(int argc, char**argv)
 			}
 
 			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone) {
-				return -3;
+				break;
 			}
 		}
 	}
