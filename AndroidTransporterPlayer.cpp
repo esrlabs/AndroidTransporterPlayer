@@ -187,14 +187,11 @@ int main(int argc, char**argv)
 	printf("PLAY: %s\n", rtspResponse);
 
 
+	printf("Waiting for H.264 data...\n");
 	uint8_t rtpPacketData[4096];
 	int rtpPacketSize;
 
-	printf("Waiting for H.264 rtpPacketData...\n");
-	uint8_t nalHeader;
-	bool startUnit = true;
 	int port_settings_changed = 0;
-
 	unsigned int data_len = 0;
 
 	while (true) {
@@ -238,28 +235,27 @@ int main(int argc, char**argv)
 			payloadOffset += 4 + extensionLength;
 		}
 
-		bool nalUnitBegins = false;
-		uint8_t* h264Data = NULL;
 		unsigned nalUnitType = rtpPacketData[payloadOffset] & 0x1F;
-		bool printDT = false;
+		uint8_t* h264Data = NULL;
+		bool startCode = false;
+		uint8_t nalUnitHeader;
 		int status = 0;
 
 		if (nalUnitType >= 1 && nalUnitType <= 23) {
 			h264Data = &rtpPacketData[payloadOffset];
-			nalUnitBegins = true;
 			uint32_t nri = (rtpPacketData[payloadOffset] >> 5) & 3;
 			printf("NAL type: %d %d\n", nalUnitType, nri);
+			startCode = true;
 		} else if (nalUnitType == 28) { // FU-A
 			h264Data = &rtpPacketData[payloadOffset + 2];
-			if (startUnit || (rtpPacketData[payloadOffset + 1] & 0x80)) {
-				uint32_t nalType = rtpPacketData[payloadOffset + 1] & 0x1f;
+			if ((rtpPacketData[payloadOffset + 1] & 0x80)) { // start
+				uint32_t nalUnitType = rtpPacketData[payloadOffset + 1] & 0x1f;
 				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
-				nalHeader = (nri << 5) | nalType;
-				nalUnitBegins = true;
-				startUnit = false;
-				printf("FU NAL type: %d %d\n", nalType, nri);
+				nalUnitHeader = (nri << 5) | nalUnitType;
+				printf("FU NAL type: %d %d\n", nalUnitType, nri);
+				startCode = true;
 			}
-			if (rtpPacketData[payloadOffset + 1] & 0x40) {
+			if (rtpPacketData[payloadOffset + 1] & 0x40) { // end
 			}
 		} else if (nalUnitType == 24) {
 			printf("Oops\n");
@@ -279,14 +275,12 @@ int main(int argc, char**argv)
 			unsigned char *dest = buf->pBuffer;
 
 			uint32_t offset = 0;
-			if (nalUnitBegins) {
+			if (startCode) {
 				memcpy(dest, "\x00\x00\x00\x01", 4);
 				offset += 4;
 				if (nalUnitType == 28) { // FU-A
-					memcpy(dest + offset, &nalHeader, 1);
+					memcpy(dest + offset, &nalUnitHeader, 1);
 					offset += 1;
-//					printf("FU NAL type: %d\n", nalHeader & 0x1f);
-//					printf("Added NAL unit header: 0x%02X\n", nalHeader);
 				}
 			}
 			uint32_t dataSize;
