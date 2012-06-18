@@ -188,12 +188,12 @@ int main(int argc, char**argv)
 
 
 	printf("Waiting for H.264 data...\n");
+
 	uint8_t rtpPacketData[4096];
 	int rtpPacketSize;
-
 	bool portSettingsChanged = false;
 	bool firstPacket = true;
-	unsigned int dataSize = 0;
+	unsigned int omxBufferFillSize = 0;
 
 	while (true) {
 		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
@@ -252,7 +252,7 @@ int main(int argc, char**argv)
 				uint32_t nalUnitType = rtpPacketData[payloadOffset + 1] & 0x1f;
 				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
 				nalUnitHeader = (nri << 5) | nalUnitType;
-				printf("FU NAL type: %d %d\n", nalUnitType, nri);
+//				printf("FU NAL type: %d %d\n", nalUnitType, nri);
 				startCode = true;
 			}
 			if (rtpPacketData[payloadOffset + 1] & 0x40) { // end
@@ -286,11 +286,11 @@ int main(int argc, char**argv)
 				h264DataSize = rtpPacketSize - payloadOffset - 2;
 			}
 			memcpy(pBuffer + offset, h264Data, h264DataSize);
-			dataSize += offset + h264DataSize;
+			omxBufferFillSize += offset + h264DataSize;
 
 			if (!portSettingsChanged  &&
-					((dataSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-					 (dataSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+					((omxBufferFillSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+					 (omxBufferFillSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
 							 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
 				portSettingsChanged = true;
 
@@ -308,12 +308,12 @@ int main(int argc, char**argv)
 				ilclient_change_component_state(video_render, OMX_StateExecuting);
 			}
 
-			if (dataSize == 0)
+			if (omxBufferFillSize == 0)
 				break;
 
 			omxBuffer->nOffset = 0;
-			omxBuffer->nFilledLen = dataSize;
-			dataSize = 0;
+			omxBuffer->nFilledLen = omxBufferFillSize;
+			omxBufferFillSize = 0;
 
 			if(firstPacket) {
 				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
