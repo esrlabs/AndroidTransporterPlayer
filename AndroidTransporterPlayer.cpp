@@ -191,9 +191,10 @@ int main(int argc, char**argv)
 
 	uint8_t rtpPacketData[4096];
 	int rtpPacketSize;
+	OMX_BUFFERHEADERTYPE* omxBuffer = NULL;
+	unsigned int omxBufferFillSize = 0;
 	bool portSettingsChanged = false;
 	bool firstPacket = true;
-	unsigned int omxBufferFillSize = 0;
 
 	while (true) {
 		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
@@ -265,8 +266,6 @@ int main(int argc, char**argv)
 			continue;
 		}
 
-		OMX_BUFFERHEADERTYPE* omxBuffer;
-
 		if ((omxBuffer = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) {
 			unsigned char* pBuffer = omxBuffer->pBuffer;
 			uint32_t offset = 0;
@@ -295,7 +294,7 @@ int main(int argc, char**argv)
 				portSettingsChanged = true;
 
 				if(ilclient_setup_tunnel(tunnel, 0, 0) != 0) {
-				   return -1;
+				   break;
 				}
 
 				ilclient_change_component_state(video_scheduler, OMX_StateExecuting);
@@ -326,26 +325,21 @@ int main(int argc, char**argv)
 				return -3;
 			}
 		}
-
-//		printf("Done\n");
-//
-//		omxBuffer->nFilledLen = 0;
-//		omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
-//
-//		if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone)
-//		status = -20;
-//
-//		// wait for EOS from render
-//		ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0,
-//						  ILCLIENT_BUFFER_FLAG_EOS, 10000);
-//
-//		// need to flush the renderer to allow video_decode to disable its input port
-//		ilclient_flush_tunnels(tunnel, 0);
-//
-//		ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
-//
-//		printf("%d\n", rtpPacketSize);
 	}
+
+	printf("Done\n");
+
+	omxBuffer->nFilledLen = 0;
+	omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
+	OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer);
+
+	// wait for EOS from renderer
+	ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0, ILCLIENT_BUFFER_FLAG_EOS, 10000);
+
+	// Flush the renderer to allow video_decode to disable its input port
+	ilclient_flush_tunnels(tunnel, 0);
+
+	ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
 
 	finalizeOMX();
 
