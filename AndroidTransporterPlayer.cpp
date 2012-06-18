@@ -191,14 +191,9 @@ int main(int argc, char**argv)
 	int rtpPacketSize;
 
 	printf("Waiting for H.264 rtpPacketData...\n");
-	size_t totalFUCount = 0;
 	uint8_t nalHeader;
 	bool startUnit = true;
 	int port_settings_changed = 0;
-
-	struct timespec now;
-	uint32_t t1, t2, dT;
-	uint32_t time1, time2;
 
 	unsigned int data_len = 0;
 
@@ -258,7 +253,6 @@ int main(int argc, char**argv)
 			printf("NAL type: %d %d\n", nalType, nri);
 		} else if (nalType == 28) { // FU-A
 			h264Data = &rtpPacketData[payloadOffset + 2];
-			totalFUCount++;
 			if (startUnit || (rtpPacketData[payloadOffset + 1] & 0x80)) {
 				uint32_t nalType = rtpPacketData[payloadOffset + 1] & 0x1f;
 				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
@@ -268,16 +262,6 @@ int main(int argc, char**argv)
 				printf("FU NAL type: %d %d\n", nalType, nri);
 			}
 			if (rtpPacketData[payloadOffset + 1] & 0x40) {
-				totalFUCount = 0;
-				clock_gettime(CLOCK_REALTIME, &now);
-				t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
-				printDT = true;
-
-//				time1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
-//				uint32_t deltaT = time1 - time2;
-//				printf("dT: %dms\n", deltaT);
-//				fflush(stdout);
-//				time2 = time1;
 			}
 		} else if (nalType == 24) {
 			printf("Oops\n");
@@ -286,26 +270,12 @@ int main(int argc, char**argv)
 			printf("Unknown NAL Type: %d\n", nalType);
 			continue;
 		}
-		if (printDT) {
-			dT = t1 - t2;
-			t2 = t1;
-//			printf("dT: %dms\n", dT);
-//			fflush(stdout);
-		}
 
 		OMX_BUFFERHEADERTYPE *buf;
 		int first_packet = 1;
 
-		clock_gettime(CLOCK_REALTIME, &now);
-		uint32_t startTime = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
 		if ((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
 		{
-			clock_gettime(CLOCK_REALTIME, &now);
-			uint32_t stopTime = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
-			uint32_t diffTime = stopTime - startTime;
-			if (diffTime > 2) {
-				printf("ilclient_get_input_buffer: %dms\n", diffTime);
-			}
 			// feed rtpPacketData and wait until we get port settings changed
 			//printf("Buffer: %x\n", buf);
 			unsigned char *dest = buf->pBuffer;
