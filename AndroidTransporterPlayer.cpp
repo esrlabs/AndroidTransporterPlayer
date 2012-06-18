@@ -24,7 +24,7 @@ static COMPONENT_T *video_decode = NULL, *video_scheduler = NULL, *video_render 
 static int initOMX() {
 	OMX_VIDEO_PARAM_PORTFORMATTYPE format;
 	OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
-	unsigned char* data = NULL;
+	unsigned char* rtpPacketData = NULL;
 
 	printf("Initializing OMX...\n");
 
@@ -187,8 +187,10 @@ int main(int argc, char**argv)
 	printf("PLAY: %s\n", rtspResponse);
 
 
-	uint8_t data[4096];
-	printf("Waiting for H.264 data...\n");
+	uint8_t rtpPacketData[4096];
+	int rtpPacketSize;
+
+	printf("Waiting for H.264 rtpPacketData...\n");
 	size_t totalFUCount = 0;
 	uint8_t nalHeader;
 	bool startUnit = true;
@@ -201,89 +203,71 @@ int main(int argc, char**argv)
 	unsigned int data_len = 0;
 
 	while (true) {
-		int size = rtpSocket->recv(data, 4096);
-		if (size <= 0) {
+		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
+		if (rtpPacketSize <= 0) {
 			break;
-		} else if (size < 12) {
+		} else if (rtpPacketSize < 12) {
 			continue;
 		}
-		if ((data[0] >> 6) != 2) {
-			// Only RTPv2 is supported.
+		if ((rtpPacketData[0] >> 6) != 2) { // RTPv2
 			return -1;
 		}
-		if (data[0] & 0x20) {
-			// Padding present.
-			size_t paddingSize = data[size - 1];
-			if (paddingSize + 12 > size) {
+		if (rtpPacketData[0] & 0x20) { // padding
+			size_t paddingSize = rtpPacketData[rtpPacketSize - 1];
+			if (paddingSize + 12 > rtpPacketSize) {
 				// If we removed this much padding we'd end up with something
 				// that's too short to be a valid RTP header.
 				continue;
 			}
-
-			size -= paddingSize;
+			rtpPacketSize -= paddingSize;
 		}
-		int numCSRCs = data[0] & 0x0F;
+		int numCSRCs = rtpPacketData[0] & 0x0F;
 		size_t payloadOffset = 12 + 4 * numCSRCs;
-		if (size < payloadOffset) {
-			// Not enough data to fit the basic header and all the CSRC entries.
+		if (rtpPacketSize < payloadOffset) {
+			// Not enough rtpPacketData to fit the basic header and all the CSRC entries.
 			continue;
 		}
-		if (data[0] & 0x10) {
+		if (rtpPacketData[0] & 0x10) {
 			// Header eXtension present.
-			if (size < payloadOffset + 4) {
-				// Not enough data to fit the basic header, all CSRC entries
+			if (rtpPacketSize < payloadOffset + 4) {
+				// Not enough rtpPacketData to fit the basic header, all CSRC entries
 				// and the first 4 bytes of the extension header.
 				continue;
 			}
 
-			const uint8_t* extensionData = &data[payloadOffset];
+			const uint8_t* extensionData = &rtpPacketData[payloadOffset];
 			size_t extensionLength = 4 * (extensionData[2] << 8 | extensionData[3]);
-			if (size < payloadOffset + 4 + extensionLength) {
+			if (rtpPacketSize < payloadOffset + 4 + extensionLength) {
 				continue;
 			}
 			payloadOffset += 4 + extensionLength;
 		}
 
-		//buffer->setRange(payloadOffset, size - payloadOffset);
-
 		bool nalUnitBegins = false;
 		bool singleNalUnit = false;
 		uint8_t* h264Data = NULL;
-		unsigned nalType = data[payloadOffset] & 0x1F;
+		unsigned nalType = rtpPacketData[payloadOffset] & 0x1F;
 		bool printDT = false;
 		int status = 0;
 
 		if (nalType >= 1 && nalType <= 23) {
-			h264Data = &data[payloadOffset];
+			h264Data = &rtpPacketData[payloadOffset];
 			singleNalUnit = true;
 			nalUnitBegins = true;
-//			printf("Single NAL unit with %d bytes of data\n", size - payloadOffset);
-			clock_gettime(CLOCK_REALTIME, &now);
-			t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
-			printDT = true;
-			uint32_t nri = (data[payloadOffset] >> 5) & 3;
+			uint32_t nri = (rtpPacketData[payloadOffset] >> 5) & 3;
 			printf("NAL type: %d %d\n", nalType, nri);
-//			if (nalType != 7 && nalType != 8) {
-//				continue;
-//			}
-		} else if (nalType == 28) {
-			// FU-A
-			h264Data = &data[payloadOffset + 2];
-//			printf("Fragmented NAL unit with %d bytes of data\n", size - payloadOffset);
+		} else if (nalType == 28) { // FU-A
+			h264Data = &rtpPacketData[payloadOffset + 2];
 			totalFUCount++;
-			if (startUnit || (data[payloadOffset + 1] & 0x80)) {
-//				printf("New NAL unit begins...\n");
-				uint32_t nalType = data[payloadOffset + 1] & 0x1f;
-				uint32_t nri = (data[payloadOffset + 0] >> 5) & 3;
+			if (startUnit || (rtpPacketData[payloadOffset + 1] & 0x80)) {
+				uint32_t nalType = rtpPacketData[payloadOffset + 1] & 0x1f;
+				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
 				nalHeader = (nri << 5) | nalType;
 				nalUnitBegins = true;
 				startUnit = false;
-//				if (nalType == 7 || nalType == 8) {
-					printf("FU NAL type: %d %d\n", nalType, nri);
-//				}
+				printf("FU NAL type: %d %d\n", nalType, nri);
 			}
-			if (data[payloadOffset + 1] & 0x40) {
-//				printf("Fragmented NAL unit complete with %d fragments\n", totalFUCount);
+			if (rtpPacketData[payloadOffset + 1] & 0x40) {
 				totalFUCount = 0;
 				clock_gettime(CLOCK_REALTIME, &now);
 				t1 = now.tv_sec * 1000LL + now.tv_nsec / 1000000;
@@ -322,7 +306,7 @@ int main(int argc, char**argv)
 			if (diffTime > 2) {
 				printf("ilclient_get_input_buffer: %dms\n", diffTime);
 			}
-			// feed data and wait until we get port settings changed
+			// feed rtpPacketData and wait until we get port settings changed
 			//printf("Buffer: %x\n", buf);
 			unsigned char *dest = buf->pBuffer;
 
@@ -339,9 +323,9 @@ int main(int argc, char**argv)
 			}
 			uint32_t dataSize;
 			if (singleNalUnit) {
-				dataSize = size - payloadOffset;
+				dataSize = rtpPacketSize - payloadOffset;
 			} else {
-				dataSize = size - payloadOffset - 2;
+				dataSize = rtpPacketSize - payloadOffset - 2;
 			}
 			memcpy(dest + offset, h264Data, dataSize);
 			data_len += offset + dataSize;
@@ -409,7 +393,7 @@ int main(int argc, char**argv)
 //
 //		ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
 //
-//		printf("%d\n", size);
+//		printf("%d\n", rtpPacketSize);
 	}
 
 	finalizeOMX();
