@@ -142,6 +142,7 @@ int main(int argc, char**argv)
 		printf("OMX init failed!\n");
 		return -1;
 	}
+	printf("\n");
 
 	sp<RtspSocket> mSocket = new RtspSocket();
 	if (!mSocket->connect(strIpAddress, port)) {
@@ -245,7 +246,7 @@ int main(int argc, char**argv)
 		if (nalUnitType >= 1 && nalUnitType <= 23) {
 			h264Data = &rtpPacketData[payloadOffset];
 			uint32_t nri = (rtpPacketData[payloadOffset] >> 5) & 3;
-			printf("NAL type: %d %d\n", nalUnitType, nri);
+//			printf("NAL unit type: %d %d\n", nalUnitType, nri);
 			startCode = true;
 		} else if (nalUnitType == 28) { // FU-A
 			h264Data = &rtpPacketData[payloadOffset + 2];
@@ -253,7 +254,7 @@ int main(int argc, char**argv)
 				uint32_t nalUnitType = rtpPacketData[payloadOffset + 1] & 0x1f;
 				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
 				nalUnitHeader = (nri << 5) | nalUnitType;
-//				printf("FU NAL type: %d %d\n", nalUnitType, nri);
+//				printf("FU NAL unit type: %d %d\n", nalUnitType, nri);
 				startCode = true;
 			}
 			if (rtpPacketData[payloadOffset + 1] & 0x40) { // end
@@ -262,7 +263,7 @@ int main(int argc, char**argv)
 			printf("Oops\n");
 			continue;
 		} else {
-			printf("Unknown NAL Type: %d\n", nalUnitType);
+			printf("Unknown NAL unit type: %d\n", nalUnitType);
 			continue;
 		}
 
