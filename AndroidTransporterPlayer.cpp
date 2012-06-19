@@ -188,8 +188,6 @@ int main(int argc, char**argv)
 	printf("PLAY: %s\n", rtspResponse);
 
 
-	printf("Waiting for H.264 data...\n");
-
 	uint8_t rtpPacketData[4096];
 	int rtpPacketSize;
 	OMX_BUFFERHEADERTYPE* omxBuffer = NULL;
