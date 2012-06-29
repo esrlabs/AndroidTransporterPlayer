@@ -150,42 +150,59 @@ int main(int argc, char**argv)
 		return -1;
 	}
 
-	uint8_t rtspResponse[4096];
-
 	String optionsMessage = String::format("OPTIONS rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(optionsMessage.c_str(), optionsMessage.size());
-	int32_t size = mSocket->readPacket(rtspResponse, 4096);
-	rtspResponse[size] = '\0';
-	printf("OPTIONS: %s\n", rtspResponse);
+	RtspHeader* rtspHeader = mSocket->readPacket();
+	printf("OPTIONS:\n");
+	RtspHeader::iterator itr = rtspHeader->begin();
+	while (itr != rtspHeader->end()) {
+		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+		++itr;
+	}
 
 	String describeMessage = String::format("DESCRIBE rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
-	size = mSocket->readPacket(rtspResponse, 4096);
-	rtspResponse[size] = '\0';
-	printf("DESCRIBE: %s\n", rtspResponse);
+	rtspHeader = mSocket->readPacket();
+	printf("\nDESCRIBE:\n");
+	uint32_t contentLength;
+	itr = rtspHeader->begin();
+	while (itr != rtspHeader->end()) {
+		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+		if (itr->first == "Content-Length") {
+			contentLength = atoi(itr->second.c_str());
+			uint8_t data[contentLength];
+			mSocket->readFully(data, contentLength);
+			printf("%s\n", String((char*)data, contentLength).c_str());
+		}
+		++itr;
+	}
 
 	sp<DatagramSocket> rtpSocket = new DatagramSocket(56098);
 	sp<DatagramSocket> rtcpSocket = new DatagramSocket(56099);
 
 	String setupMessage = String::format("SETUP rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(setupMessage.c_str(), setupMessage.size());
-	size = mSocket->readPacket(rtspResponse, 4096);
-	rtspResponse[size] = '\0';
-	printf("SETUP: %s\n", rtspResponse);
-	char* session = "Session: ";
-	session = strstr((char*) rtspResponse, session);
-	session += strlen("Session: ");
-	int i = 0;
-	while (*(session + i) != '\r') {
-		i++;	
+	rtspHeader = mSocket->readPacket();
+	printf("\nSETUP:\n");
+	String sessionId;
+	itr = rtspHeader->begin();
+	while (itr != rtspHeader->end()) {
+		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+		if (itr->first == "Session") {
+			sessionId = itr->second;
+		}
+		++itr;
 	}
-	String sessionId(session, i);
 
 	String playMessage = String::format("PLAY rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
-	size = mSocket->readPacket(rtspResponse, 4096);
-	rtspResponse[size] = '\0';
-	printf("PLAY: %s\n", rtspResponse);
+	rtspHeader = mSocket->readPacket();
+	printf("\nPLAY:\n");
+	itr = rtspHeader->begin();
+	while (itr != rtspHeader->end()) {
+		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+		++itr;
+	}
 
 
 	uint8_t rtpPacketData[4096];
