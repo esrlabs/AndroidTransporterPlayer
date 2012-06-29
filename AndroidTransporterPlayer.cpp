@@ -159,6 +159,7 @@ int main(int argc, char**argv)
 		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
 		++itr;
 	}
+	delete rtspHeader;
 
 	String describeMessage = String::format("DESCRIBE rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
@@ -176,6 +177,7 @@ int main(int argc, char**argv)
 		}
 		++itr;
 	}
+	delete rtspHeader;
 
 	sp<DatagramSocket> rtpSocket = new DatagramSocket(56098);
 	sp<DatagramSocket> rtcpSocket = new DatagramSocket(56099);
@@ -193,6 +195,7 @@ int main(int argc, char**argv)
 		}
 		++itr;
 	}
+	delete rtspHeader;
 
 	String playMessage = String::format("PLAY rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
@@ -203,6 +206,7 @@ int main(int argc, char**argv)
 		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
 		++itr;
 	}
+	delete rtspHeader;
 
 
 	uint8_t rtpPacketData[4096];
