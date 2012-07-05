@@ -43,19 +43,19 @@ static int initOMX() {
 	}
 
 	// create video_decode
-	if (ilclient_create_component(client, &video_decode, "video_decode", (ILCLIENT_CREATE_FLAGS_T)(ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS)) != 0) {
+	if (ilclient_create_component(client, &video_decode, const_cast<char *>("video_decode"), (ILCLIENT_CREATE_FLAGS_T)(ILCLIENT_DISABLE_ALL_PORTS | ILCLIENT_ENABLE_INPUT_BUFFERS)) != 0) {
 		return -3;
 	}
 	list[0] = video_decode;
 
 	// create video_render
-	if (ilclient_create_component(client, &video_render, "video_render", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+	if (ilclient_create_component(client, &video_render, const_cast<char *>("video_render"), ILCLIENT_DISABLE_ALL_PORTS) != 0) {
 		return -4;
 	}
 	list[1] = video_render;
 
 	// create clock
-	if (ilclient_create_component(client, &omx_clock, "clock", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+	if (ilclient_create_component(client, &omx_clock, const_cast<char *>("clock"), ILCLIENT_DISABLE_ALL_PORTS) != 0) {
 		return -5;
 	}
 	list[2] = omx_clock;
@@ -70,7 +70,7 @@ static int initOMX() {
 	}
 
 	// create video_scheduler
-	if (ilclient_create_component(client, &video_scheduler, "video_scheduler", ILCLIENT_DISABLE_ALL_PORTS) != 0) {
+	if (ilclient_create_component(client, &video_scheduler, const_cast<char *>("video_scheduler"), ILCLIENT_DISABLE_ALL_PORTS) != 0) {
 		return -7;
 	}
 	list[3] = video_scheduler;
@@ -124,7 +124,7 @@ static void finalizeOMX() {
 int main(int argc, char**argv)
 {
 	char* strIpAddress = NULL;
-	char* strPort = "9000";
+	const char* strPort = "9000";
 
 	if (argc < 2) {
 		printf("Usage: <IP-Address> [<Port>]\n");
@@ -135,7 +135,7 @@ int main(int argc, char**argv)
 		strPort = argv[2];
 	}
 	uint16_t port = atoi(strPort);
-	
+
 	setpriority(PRIO_PROCESS, 0, -19);
 
 	if (initOMX() != 0) {
@@ -150,7 +150,7 @@ int main(int argc, char**argv)
 		return -1;
 	}
 
-	String optionsMessage = String::format("OPTIONS rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n", strIpAddress, strPort);
+	String optionsMessage = String::format("OPTIONS rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(optionsMessage.c_str(), optionsMessage.size());
 	RtspHeader* rtspHeader = mSocket->readPacket();
 	printf("OPTIONS:\n");
@@ -161,7 +161,7 @@ int main(int argc, char**argv)
 	}
 	delete rtspHeader;
 
-	String describeMessage = String::format("DESCRIBE rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
+	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
 	rtspHeader = mSocket->readPacket();
 	printf("\nDESCRIBE:\n");
@@ -182,7 +182,7 @@ int main(int argc, char**argv)
 	sp<DatagramSocket> rtpSocket = new DatagramSocket(56098);
 	sp<DatagramSocket> rtcpSocket = new DatagramSocket(56099);
 
-	String setupMessage = String::format("SETUP rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n", strIpAddress, strPort);
+	String setupMessage = String::format("SETUP rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n", strIpAddress, strPort);
 	mSocket->write(setupMessage.c_str(), setupMessage.size());
 	rtspHeader = mSocket->readPacket();
 	printf("\nSETUP:\n");
@@ -197,7 +197,7 @@ int main(int argc, char**argv)
 	}
 	delete rtspHeader;
 
-	String playMessage = String::format("PLAY rtsp://%s:%d/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
+	String playMessage = String::format("PLAY rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
 	rtspHeader = mSocket->readPacket();
 	printf("\nPLAY:\n");
