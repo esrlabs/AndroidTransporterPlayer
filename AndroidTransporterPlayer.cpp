@@ -7,6 +7,7 @@
 #include "RtspSocket.h"
 #include "android/lang/String.h"
 #include "android/net/DatagramSocket.h"
+#include "RPiPlayer.h"
 extern "C" {
 #include "bcm_host.h"
 #include "ilclient.h"
@@ -123,246 +124,249 @@ static void finalizeOMX() {
 
 int main(int argc, char**argv)
 {
-	char* strIpAddress = NULL;
-	const char* strPort = "9000";
+//	char* strIpAddress = NULL;
+//	const char* strPort = "9000";
+//
+//	if (argc < 2) {
+//		printf("Usage: <IP-Address> [<Port>]\n");
+//		return -1;
+//	}
+//	strIpAddress = argv[1];
+//	if (argc == 3) {
+//		strPort = argv[2];
+//	}
+//	uint16_t port = atoi(strPort);
+//
+//	setpriority(PRIO_PROCESS, 0, -19);
+//
+//	if (initOMX() != 0) {
+//		printf("OMX init failed!\n");
+//		return -1;
+//	}
+//	printf("\n");
+//
+//	sp<RtspSocket> mSocket = new RtspSocket();
+//	if (!mSocket->connect(strIpAddress, port)) {
+//		printf("Cannot connect to server %s:%d\n", strIpAddress, port);
+//		return -1;
+//	}
+//
+//	String optionsMessage = String::format("OPTIONS rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n", strIpAddress, strPort);
+//	mSocket->write(optionsMessage.c_str(), optionsMessage.size());
+//	RtspHeader* rtspHeader = mSocket->readPacket();
+//	printf("OPTIONS:\n");
+//	RtspHeader::iterator itr = rtspHeader->begin();
+//	while (itr != rtspHeader->end()) {
+//		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+//		++itr;
+//	}
+//	delete rtspHeader;
+//
+//	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
+//	mSocket->write(describeMessage.c_str(), describeMessage.size());
+//	rtspHeader = mSocket->readPacket();
+//	printf("\nDESCRIBE:\n");
+//	uint32_t contentLength;
+//	itr = rtspHeader->begin();
+//	while (itr != rtspHeader->end()) {
+//		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+//		if (itr->first == "Content-Length") {
+//			contentLength = atoi(itr->second.c_str());
+//			uint8_t data[contentLength];
+//			mSocket->readFully(data, contentLength);
+//			printf("%s\n", String((char*)data, contentLength).c_str());
+//		}
+//		++itr;
+//	}
+//	delete rtspHeader;
+//
+//	sp<DatagramSocket> rtpSocket = new DatagramSocket(56098);
+//	sp<DatagramSocket> rtcpSocket = new DatagramSocket(56099);
+//
+//	String setupMessage = String::format("SETUP rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n", strIpAddress, strPort);
+//	mSocket->write(setupMessage.c_str(), setupMessage.size());
+//	rtspHeader = mSocket->readPacket();
+//	printf("\nSETUP:\n");
+//	String sessionId;
+//	itr = rtspHeader->begin();
+//	while (itr != rtspHeader->end()) {
+//		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+//		if (itr->first == "Session") {
+//			sessionId = itr->second;
+//		}
+//		++itr;
+//	}
+//	delete rtspHeader;
+//
+//	String playMessage = String::format("PLAY rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
+//	mSocket->write(playMessage.c_str(), playMessage.size());
+//	rtspHeader = mSocket->readPacket();
+//	printf("\nPLAY:\n");
+//	itr = rtspHeader->begin();
+//	while (itr != rtspHeader->end()) {
+//		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
+//		++itr;
+//	}
+//	delete rtspHeader;
+//
+//
+//	uint8_t rtpPacketData[4096];
+//	int rtpPacketSize;
+//	OMX_BUFFERHEADERTYPE* omxBuffer = NULL;
+//	unsigned int omxBufferFillSize = 0;
+//	bool portSettingsChanged = false;
+//	bool firstPacket = true;
+//
+//	while (true) {
+//		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
+//		if (rtpPacketSize <= 0) {
+//			break;
+//		} else if (rtpPacketSize < 12) {
+//			continue;
+//		}
+//		if ((rtpPacketData[0] >> 6) != 2) { // RTPv2
+//			return -1;
+//		}
+//		if (rtpPacketData[0] & 0x20) { // padding
+//			size_t paddingSize = rtpPacketData[rtpPacketSize - 1];
+//			if (paddingSize + 12 > rtpPacketSize) {
+//				// If we removed this much padding we'd end up with something
+//				// that's too short to be a valid RTP header.
+//				continue;
+//			}
+//			rtpPacketSize -= paddingSize;
+//		}
+//		int numCSRCs = rtpPacketData[0] & 0x0F;
+//		size_t payloadOffset = 12 + 4 * numCSRCs;
+//		if (rtpPacketSize < payloadOffset) {
+//			// Not enough rtpPacketData to fit the basic header and all the CSRC entries.
+//			continue;
+//		}
+//		if (rtpPacketData[0] & 0x10) {
+//			// Header eXtension present.
+//			if (rtpPacketSize < payloadOffset + 4) {
+//				// Not enough rtpPacketData to fit the basic header, all CSRC entries
+//				// and the first 4 bytes of the extension header.
+//				continue;
+//			}
+//
+//			const uint8_t* extensionData = &rtpPacketData[payloadOffset];
+//			size_t extensionLength = 4 * (extensionData[2] << 8 | extensionData[3]);
+//			if (rtpPacketSize < payloadOffset + 4 + extensionLength) {
+//				continue;
+//			}
+//			payloadOffset += 4 + extensionLength;
+//		}
+//
+//		unsigned nalUnitType = rtpPacketData[payloadOffset] & 0x1F;
+//		uint8_t* h264Data = NULL;
+//		bool startCode = false;
+//		uint8_t nalUnitHeader;
+//
+//		if (nalUnitType >= 1 && nalUnitType <= 23) {
+//			h264Data = &rtpPacketData[payloadOffset];
+//			uint32_t nri = (rtpPacketData[payloadOffset] >> 5) & 3;
+////			printf("NAL unit type: %d %d\n", nalUnitType, nri);
+//			startCode = true;
+//		} else if (nalUnitType == 28) { // FU-A
+//			h264Data = &rtpPacketData[payloadOffset + 2];
+//			if ((rtpPacketData[payloadOffset + 1] & 0x80)) { // start
+//				uint32_t nalUnitType = rtpPacketData[payloadOffset + 1] & 0x1f;
+//				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
+//				nalUnitHeader = (nri << 5) | nalUnitType;
+////				printf("FU NAL unit type: %d %d\n", nalUnitType, nri);
+//				startCode = true;
+//			}
+//			if (rtpPacketData[payloadOffset + 1] & 0x40) { // end
+//			}
+//		} else if (nalUnitType == 24) {
+//			printf("Oops\n");
+//			continue;
+//		} else {
+//			printf("Unknown NAL unit type: %d\n", nalUnitType);
+//			continue;
+//		}
+//
+//		if ((omxBuffer = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) {
+//			unsigned char* pBuffer = omxBuffer->pBuffer;
+//			uint32_t offset = 0;
+//
+//			if (startCode) {
+//				memcpy(pBuffer, "\x00\x00\x00\x01", 4);
+//				offset += 4;
+//				if (nalUnitType == 28) { // FU-A
+//					memcpy(pBuffer + offset, &nalUnitHeader, 1);
+//					offset += 1;
+//				}
+//			}
+//			uint32_t h264DataSize;
+//			if (nalUnitType >= 1 && nalUnitType <= 23) {
+//				h264DataSize = rtpPacketSize - payloadOffset;
+//			} else {
+//				h264DataSize = rtpPacketSize - payloadOffset - 2;
+//			}
+//			memcpy(pBuffer + offset, h264Data, h264DataSize);
+//			omxBufferFillSize += offset + h264DataSize;
+//
+//			if (!portSettingsChanged  &&
+//					((omxBufferFillSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+//					 (omxBufferFillSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+//							 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
+//				portSettingsChanged = true;
+//
+//				if(ilclient_setup_tunnel(tunnel, 0, 0) != 0) {
+//				   break;
+//				}
+//
+//				ilclient_change_component_state(video_scheduler, OMX_StateExecuting);
+//
+//				// now setup tunnel to video_render
+//				if(ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0) {
+//				   break;
+//				}
+//
+//				ilclient_change_component_state(video_render, OMX_StateExecuting);
+//			}
+//
+//			if (omxBufferFillSize == 0) {
+//				break;
+//			}
+//
+//			omxBuffer->nOffset = 0;
+//			omxBuffer->nFilledLen = omxBufferFillSize;
+//			omxBufferFillSize = 0;
+//
+//			if(firstPacket) {
+//				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
+//				firstPacket = false;
+//			} else {
+//				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+//			}
+//
+//			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone) {
+//				break;
+//			}
+//		}
+//	}
+//
+//	printf("Done\n");
+//
+//	omxBuffer->nFilledLen = 0;
+//	omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
+//	OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer);
+//
+//	// wait for EOS from renderer
+//	ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0, ILCLIENT_BUFFER_FLAG_EOS, 10000);
+//
+//	// Flush the renderer to allow video_decode to disable its input port
+//	ilclient_flush_tunnels(tunnel, 0);
+//
+//	ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
+//
+//	finalizeOMX();
 
-	if (argc < 2) {
-		printf("Usage: <IP-Address> [<Port>]\n");
-		return -1;
-	}
-	strIpAddress = argv[1];
-	if (argc == 3) {
-		strPort = argv[2];
-	}
-	uint16_t port = atoi(strPort);
-
-	setpriority(PRIO_PROCESS, 0, -19);
-
-	if (initOMX() != 0) {
-		printf("OMX init failed!\n");
-		return -1;
-	}
-	printf("\n");
-
-	sp<RtspSocket> mSocket = new RtspSocket();
-	if (!mSocket->connect(strIpAddress, port)) {
-		printf("Cannot connect to server %s:%d\n", strIpAddress, port);
-		return -1;
-	}
-
-	String optionsMessage = String::format("OPTIONS rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 1\r\n\r\n", strIpAddress, strPort);
-	mSocket->write(optionsMessage.c_str(), optionsMessage.size());
-	RtspHeader* rtspHeader = mSocket->readPacket();
-	printf("OPTIONS:\n");
-	RtspHeader::iterator itr = rtspHeader->begin();
-	while (itr != rtspHeader->end()) {
-		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
-		++itr;
-	}
-	delete rtspHeader;
-
-	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 2\r\n\r\n", strIpAddress, strPort);
-	mSocket->write(describeMessage.c_str(), describeMessage.size());
-	rtspHeader = mSocket->readPacket();
-	printf("\nDESCRIBE:\n");
-	uint32_t contentLength;
-	itr = rtspHeader->begin();
-	while (itr != rtspHeader->end()) {
-		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
-		if (itr->first == "Content-Length") {
-			contentLength = atoi(itr->second.c_str());
-			uint8_t data[contentLength];
-			mSocket->readFully(data, contentLength);
-			printf("%s\n", String((char*)data, contentLength).c_str());
-		}
-		++itr;
-	}
-	delete rtspHeader;
-
-	sp<DatagramSocket> rtpSocket = new DatagramSocket(56098);
-	sp<DatagramSocket> rtcpSocket = new DatagramSocket(56099);
-
-	String setupMessage = String::format("SETUP rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 3\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n", strIpAddress, strPort);
-	mSocket->write(setupMessage.c_str(), setupMessage.size());
-	rtspHeader = mSocket->readPacket();
-	printf("\nSETUP:\n");
-	String sessionId;
-	itr = rtspHeader->begin();
-	while (itr != rtspHeader->end()) {
-		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
-		if (itr->first == "Session") {
-			sessionId = itr->second;
-		}
-		++itr;
-	}
-	delete rtspHeader;
-
-	String playMessage = String::format("PLAY rtsp://%s:%s/Test.sdp RTSP/1.0\r\nCSeq: 4\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n", strIpAddress, strPort, sessionId.c_str());
-	mSocket->write(playMessage.c_str(), playMessage.size());
-	rtspHeader = mSocket->readPacket();
-	printf("\nPLAY:\n");
-	itr = rtspHeader->begin();
-	while (itr != rtspHeader->end()) {
-		printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
-		++itr;
-	}
-	delete rtspHeader;
-
-
-	uint8_t rtpPacketData[4096];
-	int rtpPacketSize;
-	OMX_BUFFERHEADERTYPE* omxBuffer = NULL;
-	unsigned int omxBufferFillSize = 0;
-	bool portSettingsChanged = false;
-	bool firstPacket = true;
-
-	while (true) {
-		rtpPacketSize = rtpSocket->recv(rtpPacketData, 4096);
-		if (rtpPacketSize <= 0) {
-			break;
-		} else if (rtpPacketSize < 12) {
-			continue;
-		}
-		if ((rtpPacketData[0] >> 6) != 2) { // RTPv2
-			return -1;
-		}
-		if (rtpPacketData[0] & 0x20) { // padding
-			size_t paddingSize = rtpPacketData[rtpPacketSize - 1];
-			if (paddingSize + 12 > rtpPacketSize) {
-				// If we removed this much padding we'd end up with something
-				// that's too short to be a valid RTP header.
-				continue;
-			}
-			rtpPacketSize -= paddingSize;
-		}
-		int numCSRCs = rtpPacketData[0] & 0x0F;
-		size_t payloadOffset = 12 + 4 * numCSRCs;
-		if (rtpPacketSize < payloadOffset) {
-			// Not enough rtpPacketData to fit the basic header and all the CSRC entries.
-			continue;
-		}
-		if (rtpPacketData[0] & 0x10) {
-			// Header eXtension present.
-			if (rtpPacketSize < payloadOffset + 4) {
-				// Not enough rtpPacketData to fit the basic header, all CSRC entries
-				// and the first 4 bytes of the extension header.
-				continue;
-			}
-
-			const uint8_t* extensionData = &rtpPacketData[payloadOffset];
-			size_t extensionLength = 4 * (extensionData[2] << 8 | extensionData[3]);
-			if (rtpPacketSize < payloadOffset + 4 + extensionLength) {
-				continue;
-			}
-			payloadOffset += 4 + extensionLength;
-		}
-
-		unsigned nalUnitType = rtpPacketData[payloadOffset] & 0x1F;
-		uint8_t* h264Data = NULL;
-		bool startCode = false;
-		uint8_t nalUnitHeader;
-
-		if (nalUnitType >= 1 && nalUnitType <= 23) {
-			h264Data = &rtpPacketData[payloadOffset];
-			uint32_t nri = (rtpPacketData[payloadOffset] >> 5) & 3;
-//			printf("NAL unit type: %d %d\n", nalUnitType, nri);
-			startCode = true;
-		} else if (nalUnitType == 28) { // FU-A
-			h264Data = &rtpPacketData[payloadOffset + 2];
-			if ((rtpPacketData[payloadOffset + 1] & 0x80)) { // start
-				uint32_t nalUnitType = rtpPacketData[payloadOffset + 1] & 0x1f;
-				uint32_t nri = (rtpPacketData[payloadOffset + 0] >> 5) & 3;
-				nalUnitHeader = (nri << 5) | nalUnitType;
-//				printf("FU NAL unit type: %d %d\n", nalUnitType, nri);
-				startCode = true;
-			}
-			if (rtpPacketData[payloadOffset + 1] & 0x40) { // end
-			}
-		} else if (nalUnitType == 24) {
-			printf("Oops\n");
-			continue;
-		} else {
-			printf("Unknown NAL unit type: %d\n", nalUnitType);
-			continue;
-		}
-
-		if ((omxBuffer = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) {
-			unsigned char* pBuffer = omxBuffer->pBuffer;
-			uint32_t offset = 0;
-
-			if (startCode) {
-				memcpy(pBuffer, "\x00\x00\x00\x01", 4);
-				offset += 4;
-				if (nalUnitType == 28) { // FU-A
-					memcpy(pBuffer + offset, &nalUnitHeader, 1);
-					offset += 1;
-				}
-			}
-			uint32_t h264DataSize;
-			if (nalUnitType >= 1 && nalUnitType <= 23) {
-				h264DataSize = rtpPacketSize - payloadOffset;
-			} else {
-				h264DataSize = rtpPacketSize - payloadOffset - 2;
-			}
-			memcpy(pBuffer + offset, h264Data, h264DataSize);
-			omxBufferFillSize += offset + h264DataSize;
-
-			if (!portSettingsChanged  &&
-					((omxBufferFillSize > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-					 (omxBufferFillSize == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
-							 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
-				portSettingsChanged = true;
-
-				if(ilclient_setup_tunnel(tunnel, 0, 0) != 0) {
-				   break;
-				}
-
-				ilclient_change_component_state(video_scheduler, OMX_StateExecuting);
-
-				// now setup tunnel to video_render
-				if(ilclient_setup_tunnel(tunnel+1, 0, 1000) != 0) {
-				   break;
-				}
-
-				ilclient_change_component_state(video_render, OMX_StateExecuting);
-			}
-
-			if (omxBufferFillSize == 0) {
-				break;
-			}
-
-			omxBuffer->nOffset = 0;
-			omxBuffer->nFilledLen = omxBufferFillSize;
-			omxBufferFillSize = 0;
-
-			if(firstPacket) {
-				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
-				firstPacket = false;
-			} else {
-				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
-			}
-
-			if(OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer) != OMX_ErrorNone) {
-				break;
-			}
-		}
-	}
-
-	printf("Done\n");
-
-	omxBuffer->nFilledLen = 0;
-	omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN | OMX_BUFFERFLAG_EOS;
-	OMX_EmptyThisBuffer(ILC_GET_HANDLE(video_decode), omxBuffer);
-
-	// wait for EOS from renderer
-	ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0, ILCLIENT_BUFFER_FLAG_EOS, 10000);
-
-	// Flush the renderer to allow video_decode to disable its input port
-	ilclient_flush_tunnels(tunnel, 0);
-
-	ilclient_disable_port_buffers(video_decode, 130, NULL, NULL, NULL);
-
-	finalizeOMX();
+	sp<RPiPlayer> rPiPlayer = new RPiPlayer();
+	rPiPlayer->start();
 
 	return 0;
 }

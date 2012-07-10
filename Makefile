@@ -15,6 +15,12 @@ LDFLAGS		+= -L./ -lc -lWFC -lGLESv2 -lEGL -lbcm_host -lopenmaxil -lilclient -lAn
 INCLUDES	+= -I./ -I../AndroidOS/include
 
 SRCS = RtspSocket.cpp \
+	Buffer.cpp \
+	RPiPlayer.cpp \
+	RtspMediaSource.cpp \
+	RtpMediaSource.cpp \
+	RtpAvcAssembler.cpp \
+	NetHandler.cpp \
 	AndroidTransporterPlayer.cpp \
 
 OBJS += $(filter %.o,$(SRCS:.cpp=.o))
