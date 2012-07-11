@@ -11,11 +11,11 @@ public:
 	static const uint32_t SETUP_MEDIA_SOURCE = 0;
 
 	NetHandler();
-	virtual void handleMessage(android::os::Message& message);
+	virtual void handleMessage(const android::os::sp<android::os::Message>& message);
 
 private:
 	android::os::sp<RtspMediaSource> mRtspMediaSource;
-	Handler* mPlayer;
+	android::os::sp<Handler> mPlayer;
 };
 
 #endif /* NETHANDLER_H_ */

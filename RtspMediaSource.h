@@ -7,13 +7,12 @@
 #include "RtpMediaSource.h"
 
 class RtspMediaSource :
-	public android::os::Ref,
 	public android::os::Handler {
 public:
-	RtspMediaSource(android::os::Handler& player);
+	RtspMediaSource(const android::os::sp<android::os::Handler>& player);
 	virtual ~RtspMediaSource();
 
-	void handleMessage(android::os::Message& message);
+	void handleMessage(const android::os::sp<android::os::Message>& message);
 
 	int32_t dequeueBuffer(MediaSourceType type , android::os::sp<Buffer>* accessUnit);
 
@@ -22,7 +21,7 @@ public:
 	}
 
 private:
-	android::os::Handler& mPlayer;
+	const android::os::sp<android::os::Handler>& mPlayer;
 	android::os::sp<RtpMediaSource> mAudioTrack;
 	android::os::sp<RtpMediaSource> mVideoTrack;
 };

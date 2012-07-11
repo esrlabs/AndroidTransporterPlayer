@@ -5,7 +5,7 @@
 
 using namespace android::os;
 
-RtpMediaSource::RtpMediaSource(MediaSourceType type, Handler& player) :
+RtpMediaSource::RtpMediaSource(MediaSourceType type, const sp<Handler>& player) :
 	mCondVar(mCondVarLock),
 	mType(type),
 	mPlayer(player) {
@@ -15,8 +15,8 @@ RtpMediaSource::RtpMediaSource(MediaSourceType type, Handler& player) :
 RtpMediaSource::~RtpMediaSource() {
 }
 
-void RtpMediaSource::handleMessage(Message& message) {
-	switch (message.what) {
+void RtpMediaSource::handleMessage(const sp<Message>& message) {
+	switch (message->what) {
 	case POLL_RTP_MEDIA_SOURCE:
 		onPollMediaSource();
 		break;
@@ -24,7 +24,7 @@ void RtpMediaSource::handleMessage(Message& message) {
 }
 
 void RtpMediaSource::pollMediaSource() {
-	obtainMessage(POLL_RTP_MEDIA_SOURCE).sendToTarget();
+	obtainMessage(POLL_RTP_MEDIA_SOURCE)->sendToTarget();
 }
 
 void RtpMediaSource::onPollMediaSource() {
@@ -36,7 +36,7 @@ void RtpMediaSource::enqueueAccessUnit(const android::os::sp<Buffer>& accessUnit
 	mAccessUnits.push_back(accessUnit);
 	mCondVar.notify();
 
-	mPlayer.obtainMessage(RPiPlayer::MEDIA_SOURCE_NOTIFY, mType, 0).sendToTarget();
+	mPlayer->obtainMessage(RPiPlayer::MEDIA_SOURCE_NOTIFY, mType, 0)->sendToTarget();
 }
 
 int32_t RtpMediaSource::dequeueAccessUnit(android::os::sp<Buffer>* accessUnit) {

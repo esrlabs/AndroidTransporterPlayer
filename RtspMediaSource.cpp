@@ -3,15 +3,15 @@
 
 using namespace android::os;
 
-RtspMediaSource::RtspMediaSource(Handler& player) :
+RtspMediaSource::RtspMediaSource(const sp<Handler>& player) :
 	mPlayer(player) {
 }
 
 RtspMediaSource::~RtspMediaSource() {
 }
 
-void RtspMediaSource::handleMessage(Message& message) {
-	switch (message.what) {
+void RtspMediaSource::handleMessage(const sp<Message>& message) {
+	switch (message->what) {
 	}
 }
 

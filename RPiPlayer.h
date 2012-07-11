@@ -5,7 +5,6 @@
 #include "NetHandler.h"
 
 class RPiPlayer :
-	public android::os::Ref,
 	public android::os::Handler
 {
 public:
@@ -16,7 +15,7 @@ public:
 	virtual ~RPiPlayer();
 	void start();
 
-	virtual void handleMessage(android::os::Message& message);
+	virtual void handleMessage(const android::os::sp<android::os::Message>& message);
 
 	bool setupMediaSource();
 

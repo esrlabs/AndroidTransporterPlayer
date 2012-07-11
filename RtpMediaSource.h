@@ -12,15 +12,14 @@
 class RtpAvcAssembler;
 
 class RtpMediaSource :
-	public android::os::Ref,
 	public android::os::Handler {
 public:
 	static const int32_t POLL_RTP_MEDIA_SOURCE = 0;
 
-	RtpMediaSource(MediaSourceType type, android::os::Handler& player);
+	RtpMediaSource(MediaSourceType type, const android::os::sp<android::os::Handler>& player);
 	virtual ~RtpMediaSource();
 
-	virtual void handleMessage(android::os::Message& message);
+	virtual void handleMessage(const android::os::sp<android::os::Message>& message);
 
 	void pollMediaSource();
 	void onPollMediaSource();
@@ -34,7 +33,7 @@ private:
 	android::os::Lock mCondVarLock;
 	android::os::CondVar mCondVar;
 	MediaSourceType mType;
-	android::os::Handler& mPlayer;
+	const android::os::sp<android::os::Handler> mPlayer;
 	List< android::os::sp<Buffer> > mAccessUnits;
 	android::os::sp<RtpAvcAssembler> mAssembler;
 
