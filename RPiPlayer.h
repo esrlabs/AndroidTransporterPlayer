@@ -19,7 +19,7 @@ public:
 
 	virtual void handleMessage(const android::os::sp<android::os::Message>& message);
 
-	bool setMediaSource(const android::lang::String& url);
+	bool setupMediaSource(const android::lang::String& url);
 
 private:
 	android::os::sp< android::os::LooperThread<NetHandler> > mNetLooper;

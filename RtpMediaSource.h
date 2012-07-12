@@ -1,10 +1,10 @@
 #ifndef RTPMEDIASOURCE_H_
 #define RTPMEDIASOURCE_H_
 
-#include "android/os/Ref.h"
+#include "android/os/Thread.h"
+#include "android/os/Handler.h"
 #include "android/os/Lock.h"
 #include "android/os/CondVar.h"
-#include "android/os/Handler.h"
 #include "List.h"
 #include "Buffer.h"
 #include "MediaSourceType.h"
@@ -17,20 +17,12 @@ class DatagramSocket;
 }
 
 class RtpMediaSource :
-	public android::os::Handler {
+	public android::os::Thread {
 public:
-	static const int32_t POLL_RTP_MEDIA_SOURCE = 0;
-
 	RtpMediaSource(MediaSourceType type, const android::os::sp<android::os::Handler>& player);
 	virtual ~RtpMediaSource();
 
-	virtual void handleMessage(const android::os::sp<android::os::Message>& message);
-
-	void pollMediaSource();
-	void onPollMediaSource();
-
-	void enqueueAccessUnit(const android::os::sp<Buffer>& accessUnit);
-	int32_t dequeueAccessUnit(android::os::sp<Buffer>* accessUnit);
+	virtual void run();
 
 	bool empty() { return mAccessUnits.empty(); }
 

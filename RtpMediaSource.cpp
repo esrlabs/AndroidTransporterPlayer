@@ -16,39 +16,8 @@ RtpMediaSource::RtpMediaSource(MediaSourceType type, const sp<Handler>& player) 
 RtpMediaSource::~RtpMediaSource() {
 }
 
-void RtpMediaSource::handleMessage(const sp<Message>& message) {
-	switch (message->what) {
-	case POLL_RTP_MEDIA_SOURCE:
-		onPollMediaSource();
-		break;
+void RtpMediaSource::run() {
+	while (!isInterrupted()) {
+		// receive stuff on RTP and RTCP port
 	}
-}
-
-void RtpMediaSource::pollMediaSource() {
-	obtainMessage(POLL_RTP_MEDIA_SOURCE)->sendToTarget();
-}
-
-void RtpMediaSource::onPollMediaSource() {
-	pollMediaSource();
-}
-
-void RtpMediaSource::enqueueAccessUnit(const android::os::sp<Buffer>& accessUnit) {
-	AutoLock autoLock(mCondVarLock);
-	mAccessUnits.push_back(accessUnit);
-	mCondVar.notify();
-
-	mPlayer->obtainMessage(RPiPlayer::MEDIA_SOURCE_NOTIFY, mType, 0)->sendToTarget();
-}
-
-int32_t RtpMediaSource::dequeueAccessUnit(android::os::sp<Buffer>* accessUnit) {
-	AutoLock autoLock(mCondVarLock);
-
-	while (mAccessUnits.empty()) {
-		mCondVar.wait();
-	}
-
-	accessUnit = &(*mAccessUnits.begin());
-	mAccessUnits.erase(mAccessUnits.begin());
-
-	return 0;
 }

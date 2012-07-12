@@ -9,7 +9,8 @@ RtspSocket::RtspSocket() :
 }
 
 RtspSocket::RtspSocket(const char* host, uint16_t port) :
-	Socket(host, port) {
+	Socket() {
+	connect(host, port);
 }
 
 String RtspSocket::readLine() {

@@ -6,16 +6,18 @@
 namespace android {
 namespace os {
 class Handler;
+class Message;
 }
 }
 
 class Bundle {
 public:
-	Bundle(android::os::sp<android::os::Handler> arg1, android::lang::String arg2);
+	Bundle(android::os::sp<android::os::Handler> arg1, android::lang::String arg2, android::os::sp<android::os::Message> reply);
 	virtual ~Bundle();
 
 	android::os::sp<android::os::Handler> arg1;
 	android::lang::String arg2;
+	android::os::sp<android::os::Message> reply;
 };
 
 #endif /* BUNDLE_H_ */
