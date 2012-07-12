@@ -10,6 +10,11 @@
 #include "MediaSourceType.h"
 
 class RtpAvcAssembler;
+namespace android {
+namespace net {
+class DatagramSocket;
+}
+}
 
 class RtpMediaSource :
 	public android::os::Handler {
@@ -36,6 +41,8 @@ private:
 	const android::os::sp<android::os::Handler> mPlayer;
 	List< android::os::sp<Buffer> > mAccessUnits;
 	android::os::sp<RtpAvcAssembler> mAssembler;
+	android::os::sp<android::net::DatagramSocket> mRtpSocket;
+	android::os::sp<android::net::DatagramSocket> mRtcpSocket;
 
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(RtpMediaSource)
 };

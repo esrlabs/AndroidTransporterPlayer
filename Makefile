@@ -21,6 +21,7 @@ SRCS = RtspSocket.cpp \
 	RtpMediaSource.cpp \
 	RtpAvcAssembler.cpp \
 	NetHandler.cpp \
+	Bundle.cpp \
 	AndroidTransporterPlayer.cpp \
 
 OBJS += $(filter %.o,$(SRCS:.cpp=.o))

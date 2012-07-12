@@ -1,10 +1,12 @@
 #include "RPiPlayer.h"
 #include <errno.h>
+#include "Bundle.h"
 
 using namespace android::os;
 
 RPiPlayer::RPiPlayer() {
 	mNetLooper =  new LooperThread<NetHandler>();
+	mNetLooper->start();
 }
 
 RPiPlayer::~RPiPlayer() {
@@ -12,15 +14,17 @@ RPiPlayer::~RPiPlayer() {
 	mNetLooper->join();
 }
 
-void RPiPlayer::start() {
-	mNetLooper->start();
-	Looper::prepare();
+void RPiPlayer::start(android::lang::String url) {
+	setMediaSource(url);
 	Looper::loop();
+}
+
+void RPiPlayer::stop() {
 }
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
-	case SET_DATA_SOURCE:
+	case SET_RTSP_MEDIA_SOURCE:
 		mRtspMediaSource = (RtspMediaSource*) message->obj;
 		break;
 	case MEDIA_SOURCE_NOTIFY:
@@ -36,9 +40,9 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 	}
 }
 
-bool RPiPlayer::setupMediaSource() {
-	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::SETUP_MEDIA_SOURCE);
-	message->obj = this;
+bool RPiPlayer::setMediaSource(const android::lang::String& url) {
+	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::SET_MEDIA_SOURCE);
+	message->obj = new Bundle(this, url);
 	message->sendToTarget();
 	return true;
 }

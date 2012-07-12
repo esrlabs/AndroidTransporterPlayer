@@ -2,6 +2,7 @@
 #include "RtpAvcAssembler.h"
 #include "android/os/Message.h"
 #include "RPiPlayer.h"
+#include "android/net/DatagramSocket.h"
 
 using namespace android::os;
 
