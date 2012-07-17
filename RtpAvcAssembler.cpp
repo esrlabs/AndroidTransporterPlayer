@@ -208,13 +208,6 @@ RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit(List< sp<Buffer> >& 
 	List< sp<Buffer> >::iterator itr = queue.begin();
 	for (size_t i = 0; i < fuNalUnitCount; i++) {
 		const sp<Buffer>& curBuffer = *itr;
-		if (i == 0) {
-			assert(curBuffer->data()[1] == 0x85);
-		} else if (i == fuNalUnitCount - 1) {
-			assert(curBuffer->data()[1] == 0x45);
-		} else {
-			assert(curBuffer->data()[1] == 0x05);
-		}
 		memcpy(accessUnit->data() + offset, curBuffer->data() + 2, curBuffer->size() - 2);
 		offset += (curBuffer->size() - 2);
 		itr = queue.erase(itr);
