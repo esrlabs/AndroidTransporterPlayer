@@ -8,21 +8,22 @@
 
 using namespace android::os;
 
-RtpAvcAssembler::RtpAvcAssembler(const sp<Message>& accessUnitNotifyMessage) :
-	mAccessUnitNotifyMessage(accessUnitNotifyMessage),
-	mSeqNumber(0),
-	mInitSeqNumber(true),
-	mFirstSeqNumberFailureTime(0) {
+RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& accessUnitNotifyMessage) :
+		mQueue(queue),
+		mAccessUnitNotifyMessage(accessUnitNotifyMessage),
+		mSeqNumber(0),
+		mInitSeqNumber(true),
+		mFirstSeqNumberFailureTime(0) {
 }
 
 RtpAvcAssembler::~RtpAvcAssembler() {
 }
 
-void RtpAvcAssembler::processMediaData(List< sp<Buffer> >& queue) {
+void RtpAvcAssembler::processMediaData() {
     Status status;
 
     while (true) {
-        status = assembleMediaData(queue);
+        status = assembleMediaData();
 
         if (status == OK) {
         	mFirstSeqNumberFailureTime = 0;
@@ -32,7 +33,7 @@ void RtpAvcAssembler::processMediaData(List< sp<Buffer> >& queue) {
                 if (Clock::monotonicTime() - mFirstSeqNumberFailureTime > TIME_PERIOD_20MS) {
                 	mFirstSeqNumberFailureTime = 0;
                 	// We lost that packet. Empty the NAL unit queue.
-                	sp<Buffer> buffer = *queue.begin();
+                	sp<Buffer> buffer = *mQueue.begin();
                 	mSeqNumber = buffer->getMetaData();
                     continue;
                 }
@@ -46,32 +47,32 @@ void RtpAvcAssembler::processMediaData(List< sp<Buffer> >& queue) {
     }
 }
 
-RtpAvcAssembler::Status RtpAvcAssembler::assembleMediaData(List< sp<Buffer> >& queue) {
-	if (queue.empty()) {
+RtpAvcAssembler::Status RtpAvcAssembler::assembleMediaData() {
+	if (mQueue.empty()) {
 		return OK;
 	}
 
-	sp<Buffer> buffer = *queue.begin();
+	sp<Buffer> buffer = *mQueue.begin();
 	const uint8_t* data = buffer->data();
 	size_t size = buffer->size();
 
 	if (size < 1 || (data[0] & F_BIT)) {
-		queue.erase(queue.begin());
+		mQueue.erase(mQueue.begin());
 		mSeqNumber++;
 		return PACKET_FAILURE;
 	}
 
 	if (!mInitSeqNumber) {
-		List< sp<Buffer> >::iterator itr = queue.begin();
-		while (itr != queue.end()) {
+		List< sp<Buffer> >::iterator itr = mQueue.begin();
+		while (itr != mQueue.end()) {
 			if ((uint32_t)(*itr)->getMetaData() > mSeqNumber) {
 				break;
 			}
 
-			itr = queue.erase(itr);
+			itr = mQueue.erase(itr);
 		}
 
-		if (queue.empty()) {
+		if (mQueue.empty()) {
 			return OK;
 		}
 	}
@@ -88,21 +89,21 @@ RtpAvcAssembler::Status RtpAvcAssembler::assembleMediaData(List< sp<Buffer> >& q
 	unsigned nalUnitType = data[0] & 0x1F;
 	if (nalUnitType >= 1 && nalUnitType <= 23) {
 		processSingleNalUnit(buffer);
-		queue.erase(queue.begin());
+		mQueue.erase(mQueue.begin());
 		mSeqNumber++;
 		return OK;
 	} else if (nalUnitType == 28) {
 		// FU-A
-		return processFragNalUnit(queue);
+		return processFragNalUnit();
 	} else if (nalUnitType == 24) {
 		// STAP-A
 		assert(false);
-		queue.erase(queue.begin());
+		mQueue.erase(mQueue.begin());
 		mSeqNumber++;
 		return OK;
 	} else {
 		printf("Unknown NAL unit type: %d\n", nalUnitType);
-		queue.erase(queue.begin());
+		mQueue.erase(mQueue.begin());
 		mSeqNumber++;
 		return OK;
 	}
@@ -121,20 +122,20 @@ void RtpAvcAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	msg->sendToTarget();
 }
 
-RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit(List< sp<Buffer> >& queue) {
-	sp<Buffer> buffer = *queue.begin();
+RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit() {
+	sp<Buffer> buffer = *mQueue.begin();
 	const uint8_t *data = buffer->data();
 	size_t size = buffer->size();
 
 	if (size < 2) {
-		queue.erase(queue.begin());
+		mQueue.erase(mQueue.begin());
 		mSeqNumber++;
 		assert(false);
 		return PACKET_FAILURE;
 	}
 
 	if (!(data[1] & FU_START_BIT)) {
-		queue.erase(queue.begin());
+		mQueue.erase(mQueue.begin());
 		mSeqNumber++;
 		return PACKET_FAILURE;
 	}
@@ -151,8 +152,8 @@ RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit(List< sp<Buffer> >& 
 	if (data[1] & FU_END_BIT) {
 		accessUnitDone = true;
 	} else {
-		List< sp<Buffer> >::iterator itr = ++queue.begin();
-		while (itr != queue.end()) {
+		List< sp<Buffer> >::iterator itr = ++mQueue.begin();
+		while (itr != mQueue.end()) {
 			const sp<Buffer>& curBuffer = *itr;
 			const uint8_t* curData = curBuffer->data();
 			size_t curSize = curBuffer->size();
@@ -169,9 +170,9 @@ RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit(List< sp<Buffer> >& 
 					(curData[1] & FU_START_BIT)) {
 
 				// Delete the access unit up to but not containing the current FU NAL unit.
-				itr = queue.begin();
+				itr = mQueue.begin();
 				for (size_t i = 0; i <= fuNalUnitCount; ++i) {
-					itr = queue.erase(itr);
+					itr = mQueue.erase(itr);
 				}
 
 				mSeqNumber = curSeqNumber;
@@ -205,12 +206,12 @@ RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit(List< sp<Buffer> >& 
 	accessUnit->data()[offset] = (nri << 5) | nalUnitType;
 	offset++;
 
-	List< sp<Buffer> >::iterator itr = queue.begin();
+	List< sp<Buffer> >::iterator itr = mQueue.begin();
 	for (size_t i = 0; i < fuNalUnitCount; i++) {
 		const sp<Buffer>& curBuffer = *itr;
 		memcpy(accessUnit->data() + offset, curBuffer->data() + 2, curBuffer->size() - 2);
 		offset += (curBuffer->size() - 2);
-		itr = queue.erase(itr);
+		itr = mQueue.erase(itr);
 	}
 	accessUnit->setRange(0, accessUnitSize);
 

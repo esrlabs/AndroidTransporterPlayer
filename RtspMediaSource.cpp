@@ -10,8 +10,8 @@ using namespace android::lang;
 using namespace android::net;
 
 RtspMediaSource::RtspMediaSource() :
-	mCSeq(1),
-	mState(NO_MEDIA_SOURCE) {
+		mCSeq(1),
+		mState(NO_MEDIA_SOURCE) {
 }
 
 RtspMediaSource::~RtspMediaSource() {

@@ -35,18 +35,17 @@ private:
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
 	sp<RtspMediaSource> mRtspMediaSource;
 
-	TUNNEL_T tunnel[4];
-	COMPONENT_T* list[5];
-	ILCLIENT_T* client;
-	COMPONENT_T* video_decode;
-	COMPONENT_T* video_scheduler;
-	COMPONENT_T* video_render;
-	COMPONENT_T* omx_clock;
-
-	OMX_BUFFERHEADERTYPE* omxBuffer;
-	unsigned int omxBufferFillSize;
-	bool portSettingsChanged;
-	bool firstPacket;
+	TUNNEL_T mTunnel[4];
+	COMPONENT_T* mComponentList[5];
+	ILCLIENT_T* mClient;
+	COMPONENT_T* mVideoDecoder;
+	COMPONENT_T* mVideoScheduler;
+	COMPONENT_T* mVideoRenderer;
+	COMPONENT_T* mClock;
+	OMX_BUFFERHEADERTYPE* mBuffer;
+	unsigned int mBufferFillSize;
+	bool mPortSettingsChanged;
+	bool mFirstPacket;
 };
 
 #endif /* RPIPLAYER_H_ */

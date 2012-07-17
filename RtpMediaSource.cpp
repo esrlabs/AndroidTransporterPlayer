@@ -10,8 +10,8 @@ using namespace android::os;
 using namespace android::net;
 
 RtpMediaSource::RtpMediaSource() :
-	mRtpPacketCounter(0),
-	mHighestSeqNumber(0) {
+		mRtpPacketCounter(0),
+		mHighestSeqNumber(0) {
 }
 
 RtpMediaSource::~RtpMediaSource() {
@@ -44,9 +44,8 @@ void RtpMediaSource::run() {
 	}
 }
 
-void RtpMediaSource::start(uint16_t port,
-		const sp<android::os::Message>& accessUnitNotifyMessage) {
-	mAssembler = new RtpAvcAssembler(accessUnitNotifyMessage);
+void RtpMediaSource::start(uint16_t port, const sp<Message>& accessUnitNotifyMessage) {
+	mAssembler = new RtpAvcAssembler(mQueue, accessUnitNotifyMessage);
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 //	int size = 1024 * 1024;
@@ -60,7 +59,7 @@ void RtpMediaSource::stop() {
 }
 
 bool RtpMediaSource::processMediaData(sp<DatagramSocket> socket) {
-    sp<Buffer> buffer(new Buffer(65536));
+    sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
 
     ssize_t size = socket->recv(buffer->data(), buffer->capacity());
     if (size > 0) {
@@ -131,7 +130,7 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 	if (mRtpPacketCounter++ == 0) {
 		mHighestSeqNumber = seqNum;
 		mQueue.push_back(buffer);
-		mAssembler->processMediaData(mQueue);
+		mAssembler->processMediaData();
 		return;
 	}
 
@@ -161,8 +160,6 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 
 	buffer->setMetaData(seqNum);
 
-//	printf("RtpMediaSource::processRtpPayload buffer with seqNum %d\n", (uint32_t)buffer->getMetaData());
-
 	List< sp<Buffer> >::iterator itr = mQueue.begin();
 	while (itr != mQueue.end() && (uint32_t)(*itr)->getMetaData() < seqNum) {
 		++itr;
@@ -174,5 +171,5 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 
 	mQueue.insert(itr, buffer);
 
-	mAssembler->processMediaData(mQueue);
+	mAssembler->processMediaData();
 }

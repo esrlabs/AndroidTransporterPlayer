@@ -24,13 +24,13 @@ public:
 	RtpMediaSource();
 	virtual ~RtpMediaSource();
 
-	virtual void run();
-
-	void start(uint16_t port,
-			const sp<android::os::Message>& reply);
+	void start(uint16_t port, const sp<android::os::Message>& reply);
 	void stop();
 
+	virtual void run();
+
 private:
+	static const uint32_t MAX_UDP_PACKET_SIZE = 65536;
 	static const uint32_t RTP_HEADER_SIZE = 12;
 	static const uint32_t EXT_HEADER_BIT = 1 << 4;
 	static const uint32_t PADDING_BIT = 1 << 5;
@@ -42,11 +42,11 @@ private:
 
 	sp<android::net::DatagramSocket> mRtpSocket;
 	sp<android::net::DatagramSocket> mRtcpSocket;
-	MediaSourceType mType;
 	List< sp<Buffer> > mQueue;
 	sp<RtpAvcAssembler> mAssembler;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;
+	MediaSourceType mType;
 
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(RtpMediaSource)
 };

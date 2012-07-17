@@ -12,12 +12,11 @@ int main(int argc, char**argv)
 		printf("Usage: rtsp://<Host>:<Port>/<SDP-File>\n");
 		return -1;
 	}
-	char* url = argv[1];
 
 	Looper::prepare();
 	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
 	sp<RPiPlayer> rPiPlayer = new RPiPlayer();
-	rPiPlayer->start(String(url));
+	rPiPlayer->start(String(argv[1]));
 	Looper::loop();
 
 	return 0;
