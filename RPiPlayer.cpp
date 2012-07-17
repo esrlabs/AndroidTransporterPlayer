@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 using namespace android::os;
+using namespace android::lang;
 
 RPiPlayer::RPiPlayer() :
 		mVideoDecoder(NULL),
@@ -22,8 +23,6 @@ RPiPlayer::RPiPlayer() :
 }
 
 RPiPlayer::~RPiPlayer() {
-	mNetLooper->getLooper()->quit();
-	mNetLooper->join();
 	finalizeOMX();
 }
 
@@ -37,22 +36,35 @@ void RPiPlayer::stop() {
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
-	case SET_RTSP_MEDIA_SOURCE:
-		mRtspMediaSource = (RtspMediaSource*) message->obj;
-		break;
-	case MEDIA_SOURCE_NOTIFY:
+	case MEDIA_SOURCE_NOTIFY: {
 		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
 		delete (sp<Buffer>*) message->obj;
 		onMediaSourceNotify(accessUnit);
 		break;
 	}
+	case STOP_MEDIA_SOURCE_DONE: {
+		mNetLooper->getLooper()->quit();
+		printf("MEDIA_SOURCE_DONE\n");
+		mNetLooper->join();
+		printf("MEDIA_SOURCE_DONE done\n");
+		mNetLooper = NULL;
+		Looper::myLooper()->quit();
+		break;
+	}
+	}
 }
 
 bool RPiPlayer::setupMediaSource(const android::lang::String& url) {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::SETUP_MEDIA_SOURCE);
-	message->obj = new Bundle(this, url, obtainMessage(SET_RTSP_MEDIA_SOURCE));
+	message->obj = new Bundle(this, url, NULL);
 	message->sendToTarget();
 	return true;
+}
+
+void RPiPlayer::stopMediaSource() {
+	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::STOP_MEDIA_SOURCE);
+	message->obj = new Bundle(NULL, String(NULL), obtainMessage(STOP_MEDIA_SOURCE_DONE));
+	message->sendToTarget();
 }
 
 void RPiPlayer::onMediaSourceNotify(const sp<Buffer>& accessUnit) {

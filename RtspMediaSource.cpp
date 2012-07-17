@@ -17,14 +17,15 @@ RtspMediaSource::RtspMediaSource() :
 RtspMediaSource::~RtspMediaSource() {
 }
 
-void RtspMediaSource::start(const String& url, const sp<Message>& reply) {
+bool RtspMediaSource::start(const String& url, const sp<Message>& reply) {
 	mUrl = url;
 	mReply = reply;
-	Thread::start();
+	return Thread::start();
 }
 
 void RtspMediaSource::stop() {
 	interrupt();
+	mSocket->close();
 	join();
 }
 
@@ -114,23 +115,23 @@ void RtspMediaSource::run() {
 				++itr;
 			}
 			delete rtspHeader;
-		}
 
-		sp<Message> reply = mReply;
-		mReply = NULL;
+			sp<Message> reply = mReply;
+			mReply = NULL;
 
-		if (mState == DESCRIBE_SERVICE) {
-			reply->arg1 = 0;
-			mState = DESCRIBE_SERVICE_DONE;
-			reply->sendToTarget();
-		} else if (mState == SETUP_TRACK) {
-			reply->arg1 = 0;
-			mState = SETUP_TRACK_DONE;
-			reply->sendToTarget();
-		} else if (mState == PLAY_TRACK) {
-			reply->arg1 = 0;
-			mState = PLAY_TRACK_DONE;
-			reply->sendToTarget();
+			if (mState == DESCRIBE_SERVICE) {
+				reply->arg1 = 0;
+				mState = DESCRIBE_SERVICE_DONE;
+				reply->sendToTarget();
+			} else if (mState == SETUP_TRACK) {
+				reply->arg1 = 0;
+				mState = SETUP_TRACK_DONE;
+				reply->sendToTarget();
+			} else if (mState == PLAY_TRACK) {
+				reply->arg1 = 0;
+				mState = PLAY_TRACK_DONE;
+				reply->sendToTarget();
+			}
 		}
 	}
 }

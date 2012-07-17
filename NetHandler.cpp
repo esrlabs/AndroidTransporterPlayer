@@ -8,6 +8,9 @@ using namespace android::os;
 NetHandler::NetHandler() {
 }
 
+NetHandler::~NetHandler() {
+}
+
 void NetHandler::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case SETUP_MEDIA_SOURCE: {
@@ -15,9 +18,6 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		mPlayer = bundle->arg1;
 		mRtspMediaSource = new RtspMediaSource();
 		mRtspMediaSource->start(bundle->arg2, obtainMessage(SETUP_MEDIA_SOURCE_DONE));
-		sp<Message> reply = bundle->reply;
-		reply->obj = mRtspMediaSource.getPointer();
-		reply->sendToTarget();
 		delete bundle;
 		break;
 	}
@@ -42,7 +42,17 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		}
 		break;
 	}
-	case PLAY_TRACK_DONE:
+	case PLAY_TRACK_DONE: {
 		break;
+	}
+	case STOP_MEDIA_SOURCE: {
+		mRtspMediaSource->stop();
+		mRtpVideoSource->stop();
+		Bundle* bundle = (Bundle*) message->obj;
+		sp<Message> reply = bundle->reply;
+		reply->sendToTarget();
+		delete bundle;
+		break;
+	}
 	}
 }

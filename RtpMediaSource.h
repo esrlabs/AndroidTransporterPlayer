@@ -24,7 +24,7 @@ public:
 	RtpMediaSource();
 	virtual ~RtpMediaSource();
 
-	void start(uint16_t port, const sp<android::os::Message>& reply);
+	bool start(uint16_t port, const sp<android::os::Message>& reply);
 	void stop();
 
 	virtual void run();

@@ -15,8 +15,8 @@ class RPiPlayer :
 	public android::os::Handler
 {
 public:
-	static const int32_t SET_RTSP_MEDIA_SOURCE = 0;
-	static const int32_t MEDIA_SOURCE_NOTIFY = 1;
+	static const uint32_t MEDIA_SOURCE_NOTIFY = 1;
+	static const uint32_t STOP_MEDIA_SOURCE_DONE = 2;
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
@@ -26,6 +26,7 @@ public:
 	virtual void handleMessage(const sp<android::os::Message>& message);
 
 	bool setupMediaSource(const android::lang::String& url);
+	void stopMediaSource();
 
 private:
 	int initOMX();
@@ -33,7 +34,6 @@ private:
 	void onMediaSourceNotify(const sp<Buffer>& accessUnit);
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
-	sp<RtspMediaSource> mRtspMediaSource;
 
 	TUNNEL_T mTunnel[4];
 	COMPONENT_T* mComponentList[5];

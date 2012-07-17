@@ -35,7 +35,7 @@ String RtspSocket::readLine() {
 			break;
 		}
 	}
-	return line.trim();
+	return result > 0 ? line.trim() : String(NULL);
 }
 
 RtspHeader* RtspSocket::readPacket() {
@@ -63,7 +63,11 @@ RtspHeader* RtspSocket::readPacket() {
 				}
 			}
 		}
-	} while (line.size() > 0);
+	} while (!line.isNull() && line.size() > 0);
 
-	return rtspHeader;
+	if (line.isNull()) {
+		delete rtspHeader;
+	}
+
+	return !line.isNull() ? rtspHeader : NULL;
 }

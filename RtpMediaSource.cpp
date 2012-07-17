@@ -44,17 +44,19 @@ void RtpMediaSource::run() {
 	}
 }
 
-void RtpMediaSource::start(uint16_t port, const sp<Message>& accessUnitNotifyMessage) {
+bool RtpMediaSource::start(uint16_t port, const sp<Message>& accessUnitNotifyMessage) {
 	mAssembler = new RtpAvcAssembler(mQueue, accessUnitNotifyMessage);
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 //	int size = 1024 * 1024;
 //	setsockopt(mRtpSocket->getSocketId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-	Thread::start();
+	return Thread::start();
 }
 
 void RtpMediaSource::stop() {
 	interrupt();
+	mRtpSocket->close();
+	mRtcpSocket->close();
 	join();
 }
 

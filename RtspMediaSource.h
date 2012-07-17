@@ -22,7 +22,7 @@ public:
 
 	virtual void run();
 
-	void start(const android::lang::String& url,
+	bool start(const android::lang::String& url,
 			const sp<android::os::Message>& reply);
 	void stop();
 	void describeService(const sp<android::os::Message>& reply);

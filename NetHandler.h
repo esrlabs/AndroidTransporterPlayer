@@ -17,8 +17,10 @@ public:
 	static const uint32_t DESCRIBE_SERVICE_DONE = 2;
 	static const uint32_t SETUP_TRACK_DONE = 3;
 	static const uint32_t PLAY_TRACK_DONE = 4;
+	static const uint32_t STOP_MEDIA_SOURCE = 5;
 
 	NetHandler();
+	~NetHandler();
 	virtual void handleMessage(const sp<android::os::Message>& message);
 
 private:
