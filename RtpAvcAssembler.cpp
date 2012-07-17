@@ -8,9 +8,9 @@
 
 using namespace android::os;
 
-RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& accessUnitNotifyMessage) :
+RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& notifyAccessUnit) :
 		mQueue(queue),
-		mAccessUnitNotifyMessage(accessUnitNotifyMessage),
+		mNotifyAccessUnit(notifyAccessUnit),
 		mSeqNumber(0),
 		mInitSeqNumber(true),
 		mFirstSeqNumberFailureTime(0) {
@@ -117,7 +117,7 @@ void RtpAvcAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	offset += 4;
 	memcpy(accessUnit->data() + offset, nalUnit->data(), nalUnit->size());
 
-	sp<Message> msg = mAccessUnitNotifyMessage->dup();
+	sp<Message> msg = mNotifyAccessUnit->dup();
 	msg->obj = new sp<Buffer>(accessUnit);
 	msg->sendToTarget();
 }
@@ -215,7 +215,7 @@ RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit() {
 	}
 	accessUnit->setRange(0, accessUnitSize);
 
-	sp<Message> msg = mAccessUnitNotifyMessage->dup();
+	sp<Message> msg = mNotifyAccessUnit->dup();
 	msg->obj = new sp<Buffer>(accessUnit);
 	msg->sendToTarget();
 

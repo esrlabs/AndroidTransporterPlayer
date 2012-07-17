@@ -36,11 +36,11 @@ void RtspMediaSource::describeService(const sp<Message>& reply) {
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
 }
 
-void RtspMediaSource::setupTrack(const sp<Message>& reply) {
+void RtspMediaSource::setupTrack(uint16_t port, const sp<Message>& reply) {
 	mReply = reply;
 	mState = SETUP_TRACK;
-	String setupMessage = String::format("SETUP rtsp://%s:%s/%s/trackID=0 RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=56098-56099\r\n\r\n",
-			mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++);
+	String setupMessage = String::format("SETUP rtsp://%s:%s/%s/trackID=0 RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
+			mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++, port, port + 1);
 	mSocket->write(setupMessage.c_str(), setupMessage.size());
 }
 

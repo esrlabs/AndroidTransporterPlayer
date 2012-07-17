@@ -26,7 +26,7 @@ public:
 			const sp<android::os::Message>& reply);
 	void stop();
 	void describeService(const sp<android::os::Message>& reply);
-	void setupTrack(const sp<android::os::Message>& reply);
+	void setupTrack(uint16_t port, const sp<android::os::Message>& reply);
 	void playTrack(const sp<android::os::Message>& reply);
 
 private:

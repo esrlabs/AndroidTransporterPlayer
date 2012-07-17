@@ -22,7 +22,7 @@ public:
 		SEQ_NUMBER_FAILURE,
 	};
 
-	RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<android::os::Message>& accessUnitNotifyMessage);
+	RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
 	virtual ~RtpAvcAssembler();
 
 	void processMediaData();
@@ -38,7 +38,7 @@ private:
 	Status processFragNalUnit();
 
 	List< sp<Buffer> >& mQueue;
-	sp<android::os::Message> mAccessUnitNotifyMessage;
+	sp<android::os::Message> mNotifyAccessUnit;
 	uint32_t mSeqNumber;
 	bool mInitSeqNumber;
 	uint64_t mFirstSeqNumberFailureTime;
