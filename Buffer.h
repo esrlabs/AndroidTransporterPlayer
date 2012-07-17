@@ -17,14 +17,17 @@ public:
 	size_t capacity() const { return mCapacity; }
 	size_t size() const { return mSize; }
 	size_t offset() const { return mOffset; }
-
 	void setRange(size_t offset, size_t size);
+
+	void setMetaData(int32_t metaData) { mMetaData = metaData; }
+	int32_t getMetaData() const { return mMetaData; }
 
 private:
 	void* mData;
 	size_t mCapacity;
 	size_t mOffset;
 	size_t mSize;
+	int32_t mMetaData;
 };
 
 #endif /* BUFFER_H_ */

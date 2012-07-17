@@ -2,39 +2,51 @@
 #define RTPMEDIASOURCE_H_
 
 #include "android/os/Thread.h"
-#include "android/os/Handler.h"
-#include "android/os/Lock.h"
-#include "android/os/CondVar.h"
 #include "List.h"
-#include "Buffer.h"
 #include "MediaSourceType.h"
 
+class Buffer;
 class RtpAvcAssembler;
 namespace android {
+namespace os {
+class Message;
+}
 namespace net {
 class DatagramSocket;
 }
 }
 
+using android::os::sp;
+
 class RtpMediaSource :
 	public android::os::Thread {
 public:
-	RtpMediaSource(MediaSourceType type, const android::os::sp<android::os::Handler>& player);
+	RtpMediaSource();
 	virtual ~RtpMediaSource();
 
 	virtual void run();
 
-	bool empty() { return mAccessUnits.empty(); }
+	void start(uint16_t port,
+			const sp<android::os::Message>& reply);
+	void stop();
 
 private:
-	android::os::Lock mCondVarLock;
-	android::os::CondVar mCondVar;
+	static const uint32_t RTP_HEADER_SIZE = 12;
+	static const uint32_t EXT_HEADER_BIT = 1 << 4;
+	static const uint32_t PADDING_BIT = 1 << 5;
+
+	bool start();
+	bool processMediaData(sp<android::net::DatagramSocket> socket);
+	int parseRtpHeader(const sp<Buffer>& buffer);
+	void processRtpPayload(const sp<Buffer>& buffer);
+
+	sp<android::net::DatagramSocket> mRtpSocket;
+	sp<android::net::DatagramSocket> mRtcpSocket;
 	MediaSourceType mType;
-	const android::os::sp<android::os::Handler> mPlayer;
-	List< android::os::sp<Buffer> > mAccessUnits;
-	android::os::sp<RtpAvcAssembler> mAssembler;
-	android::os::sp<android::net::DatagramSocket> mRtpSocket;
-	android::os::sp<android::net::DatagramSocket> mRtcpSocket;
+	List< sp<Buffer> > mQueue;
+	sp<RtpAvcAssembler> mAssembler;
+	uint32_t mRtpPacketCounter;
+	uint32_t mHighestSeqNumber;
 
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(RtpMediaSource)
 };

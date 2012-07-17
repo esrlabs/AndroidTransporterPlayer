@@ -2,36 +2,57 @@
 #define RTSPMEDIASOURCE_H_
 
 #include "android/os/Thread.h"
-#include "android/os/Handler.h"
-#include "MediaSourceType.h"
-#include "RtpMediaSource.h"
 #include "android/lang/String.h"
-#include "RtspSocket.h"
+
+class RtspSocket;
+namespace android {
+namespace os {
+class Message;
+class Handler;
+}
+}
+
+using android::os::sp;
 
 class RtspMediaSource :
-	public android::os::Handler {
+	public android::os::Thread {
 public:
 	RtspMediaSource();
 	virtual ~RtspMediaSource();
 
-	void setupMediaSource(const android::os::sp<android::os::Handler>& netHandler,
-			const android::lang::String& url,
-			const android::os::sp<android::os::Message>& reply);
-	void describeService();
+	virtual void run();
 
-	void handleMessage(const android::os::sp<android::os::Message>& message);
+	void start(const android::lang::String& url,
+			const sp<android::os::Message>& reply);
+	void stop();
+	void describeService(const sp<android::os::Message>& reply);
+	void setupTrack(const sp<android::os::Message>& reply);
+	void playTrack(const sp<android::os::Message>& reply);
 
 private:
-	static const uint32_t SETUP_MEDIA_SOURCE = 0;
-	static const uint32_t DESCRIBE_SERVICE = 1;
+	enum State {
+		NO_MEDIA_SOURCE,
+		SETUP_MEDIA_SOURCE_DONE,
+		DESCRIBE_SERVICE,
+		DESCRIBE_SERVICE_DONE,
+		SETUP_TRACK,
+		SETUP_TRACK_DONE,
+		PLAY_TRACK,
+		PLAY_TRACK_DONE
+	};
 
-	android::os::sp<android::os::Handler> mNetHandler;
-	android::os::sp<RtpMediaSource> mAudioTrack;
-	android::os::sp<RtpMediaSource> mVideoTrack;
+	void start();
+	void setupMediaSource(sp<android::os::Message> reply);
+
 	android::lang::String mUrl;
 	android::lang::String mHost;
 	android::lang::String mPort;
-	android::os::sp<RtspSocket> mSocket;
+	android::lang::String mServiceDesc;
+	sp<RtspSocket> mSocket;
+	uint32_t mCSeq;
+	State mState;
+	sp<android::os::Message> mReply;
+	android::lang::String mSessionId;
 };
 
 #endif /* RTSPMEDIASOURCE_H_ */

@@ -6,14 +6,16 @@ Buffer::Buffer(size_t capacity) :
 	mData(malloc(capacity)),
 	mCapacity(capacity),
 	mOffset(0),
-	mSize(capacity) {
+	mSize(capacity),
+	mMetaData(0) {
 }
 
 Buffer::Buffer(void* data, size_t capacity) :
 	mData(data),
 	mCapacity(capacity),
 	mOffset(0),
-	mSize(capacity) {
+	mSize(capacity),
+	mMetaData(0) {
 }
 
 Buffer::~Buffer() {

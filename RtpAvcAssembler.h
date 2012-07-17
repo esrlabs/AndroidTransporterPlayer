@@ -2,17 +2,45 @@
 #define RTPAVCASSEMBLER_H_
 
 #include "android/os/Ref.h"
+#include "List.h"
 
-class RtpMediaSource;
+class Buffer;
+namespace android {
+namespace os {
+class Message;
+}
+}
+
+using android::os::sp;
 
 class RtpAvcAssembler :
 	public android::os::Ref {
 public:
-	RtpAvcAssembler(android::os::sp<RtpMediaSource> mediaSource);
+	enum Status {
+		OK,
+		PACKET_FAILURE,
+		SEQ_NUMBER_FAILURE,
+	};
+
+	RtpAvcAssembler(const sp<android::os::Message>& accessUnitNotifyMessage);
 	virtual ~RtpAvcAssembler();
 
+	void processMediaData(List< sp<Buffer> >& queue);
+
 private:
-	android::os::sp<RtpMediaSource> mMediaSource;
+	static const uint8_t F_BIT = 1 << 7;
+	static const uint8_t FU_START_BIT = 1 << 7;
+	static const uint8_t FU_END_BIT = 1 << 6;
+	static const uint64_t TIME_PERIOD_20MS = 20000000LL;
+
+	Status assembleMediaData(List< sp<Buffer> >& queue);
+	void processSingleNalUnit(sp<Buffer> nalUnit);
+	Status processFragNalUnit(List< sp<Buffer> >& queue);
+
+	sp<android::os::Message> mAccessUnitNotifyMessage;
+	uint32_t mSeqNumber;
+	bool mInitSeqNumber;
+	uint64_t mFirstSeqNumberFailureTime;
 };
 
 #endif /* RTPAVCASSEMBLER_H_ */
