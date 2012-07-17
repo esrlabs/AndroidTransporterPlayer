@@ -13,8 +13,6 @@ RPiPlayer::RPiPlayer() :
 		mVideoScheduler(NULL),
 		mVideoRenderer(NULL),
 		mClock(NULL),
-		mBuffer(NULL),
-		mBufferFillSize(0),
 		mPortSettingsChanged(false),
 		mFirstPacket(true) {
 	mNetLooper =  new LooperThread<NetHandler>();
@@ -23,30 +21,28 @@ RPiPlayer::RPiPlayer() :
 }
 
 RPiPlayer::~RPiPlayer() {
-	finalizeOMX();
 }
 
 void RPiPlayer::start(android::lang::String url) {
 	setupMediaSource(url);
-	initOMX();
+	assert(initOMX() == 0);
 }
 
 void RPiPlayer::stop() {
+	finalizeOMX();
 }
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
-	case MEDIA_SOURCE_NOTIFY: {
+	case NOTIFY_VIDEO_MEDIA_SOURCE: {
 		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
 		delete (sp<Buffer>*) message->obj;
-		onMediaSourceNotify(accessUnit);
+		onNotifyVideoMediaSource(accessUnit);
 		break;
 	}
 	case STOP_MEDIA_SOURCE_DONE: {
 		mNetLooper->getLooper()->quit();
-		printf("MEDIA_SOURCE_DONE\n");
 		mNetLooper->join();
-		printf("MEDIA_SOURCE_DONE done\n");
 		mNetLooper = NULL;
 		Looper::myLooper()->quit();
 		break;
@@ -67,54 +63,55 @@ void RPiPlayer::stopMediaSource() {
 	message->sendToTarget();
 }
 
-void RPiPlayer::onMediaSourceNotify(const sp<Buffer>& accessUnit) {
+void RPiPlayer::onNotifyVideoMediaSource(const sp<Buffer>& accessUnit) {
+	OMX_BUFFERHEADERTYPE* omxBuffer;
+	size_t omxBufferFillLevel;
 	size_t offset = 0;
 
 	while (offset < accessUnit->size()) {
-		if ((mBuffer = ilclient_get_input_buffer(mVideoDecoder, 130, 1)) != NULL) {
-			unsigned char* pBuffer = mBuffer->pBuffer;
+		if ((omxBuffer = ilclient_get_input_buffer(mVideoDecoder, 130, 1)) != NULL) {
+			unsigned char* pBuffer = omxBuffer->pBuffer;
 
-			size_t size = ((accessUnit->size() - offset) > mBuffer->nAllocLen) ? mBuffer->nAllocLen : (accessUnit->size() - offset);
+			size_t size = ((accessUnit->size() - offset) > omxBuffer->nAllocLen) ? omxBuffer->nAllocLen : (accessUnit->size() - offset);
 			memcpy(pBuffer, accessUnit->data() + offset, size);
-			mBufferFillSize = size;
+			omxBufferFillLevel = size;
 			offset += size;
 
 			if (!mPortSettingsChanged  &&
-					((mBufferFillSize > 0 && ilclient_remove_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-					 (mBufferFillSize == 0 && ilclient_wait_for_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+					((omxBufferFillLevel > 0 && ilclient_remove_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+					 (omxBufferFillLevel == 0 && ilclient_wait_for_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
 							 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
-				mPortSettingsChanged = true;
-
-				if(ilclient_setup_tunnel(mTunnel, 0, 0) != 0) {
+				if (ilclient_setup_tunnel(mTunnel, 0, 0) != 0) {
 					return;
 				}
 
 				ilclient_change_component_state(mVideoScheduler, OMX_StateExecuting);
 
-				// now setup tunnel to video_render
-				if(ilclient_setup_tunnel(mTunnel + 1, 0, 1000) != 0) {
+				if (ilclient_setup_tunnel(mTunnel + 1, 0, 1000) != 0) {
 					return;
 				}
 
 				ilclient_change_component_state(mVideoRenderer, OMX_StateExecuting);
+
+				mPortSettingsChanged = true;
 			}
 
-			if (mBufferFillSize == 0) {
+			if (omxBufferFillLevel == 0) {
 				return;
 			}
 
-			mBuffer->nOffset = 0;
-			mBuffer->nFilledLen = mBufferFillSize;
-			mBufferFillSize = 0;
+			omxBuffer->nOffset = 0;
+			omxBuffer->nFilledLen = omxBufferFillLevel;
+			omxBufferFillLevel = 0;
 
 			if (mFirstPacket) {
-				mBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
+				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
 				mFirstPacket = false;
 			} else {
-				mBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
 			}
 
-			if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mVideoDecoder), mBuffer) != OMX_ErrorNone) {
+			if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mVideoDecoder), omxBuffer) != OMX_ErrorNone) {
 				return;
 			}
 		}
@@ -124,9 +121,6 @@ void RPiPlayer::onMediaSourceNotify(const sp<Buffer>& accessUnit) {
 int RPiPlayer::initOMX() {
 	OMX_VIDEO_PARAM_PORTFORMATTYPE format;
 	OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
-	unsigned char* rtpPacketData = NULL;
-
-	printf("Initializing OMX...\n");
 
 	bcm_host_init();
 
@@ -196,11 +190,9 @@ int RPiPlayer::initOMX() {
 
 	if (OMX_SetParameter(ILC_GET_HANDLE(mVideoDecoder), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
 			ilclient_enable_port_buffers(mVideoDecoder, 130, NULL, NULL, NULL) == 0) {
-	  ilclient_change_component_state(mVideoDecoder, OMX_StateExecuting);
-	  printf("OMX init done.\n");
-	  return 0;
+		ilclient_change_component_state(mVideoDecoder, OMX_StateExecuting);
+		return 0;
 	} else {
-		printf("OMX init failed!\n");
 		return -9;
 	}
 }

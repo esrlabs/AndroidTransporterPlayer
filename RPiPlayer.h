@@ -15,7 +15,7 @@ class RPiPlayer :
 	public android::os::Handler
 {
 public:
-	static const uint32_t MEDIA_SOURCE_NOTIFY = 1;
+	static const uint32_t NOTIFY_VIDEO_MEDIA_SOURCE = 1;
 	static const uint32_t STOP_MEDIA_SOURCE_DONE = 2;
 
 	RPiPlayer();
@@ -25,13 +25,12 @@ public:
 
 	virtual void handleMessage(const sp<android::os::Message>& message);
 
+private:
 	bool setupMediaSource(const android::lang::String& url);
 	void stopMediaSource();
-
-private:
 	int initOMX();
 	void finalizeOMX();
-	void onMediaSourceNotify(const sp<Buffer>& accessUnit);
+	void onNotifyVideoMediaSource(const sp<Buffer>& accessUnit);
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
 
@@ -42,8 +41,6 @@ private:
 	COMPONENT_T* mVideoScheduler;
 	COMPONENT_T* mVideoRenderer;
 	COMPONENT_T* mClock;
-	OMX_BUFFERHEADERTYPE* mBuffer;
-	unsigned int mBufferFillSize;
 	bool mPortSettingsChanged;
 	bool mFirstPacket;
 };
