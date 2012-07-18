@@ -42,16 +42,16 @@ void RtspMediaSource::describeService(const sp<Message>& reply) {
 void RtspMediaSource::setupTrack(uint16_t port, const sp<Message>& reply) {
 	mReply = reply;
 	mState = SETUP_TRACK;
-	String setupMessage = String::format("SETUP rtsp://%s:%s/%s/trackID=0 RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
-			mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++, port, port + 1);
+	String setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
+			mVideoMediaSourceUrl.c_str(), mCSeq++, port, port + 1);
 	mSocket->write(setupMessage.c_str(), setupMessage.size());
 }
 
 void RtspMediaSource::playTrack(const sp<android::os::Message>& reply) {
 	mReply = reply;
 	mState = PLAY_TRACK;
-	String playMessage = String::format("PLAY rtsp://%s:%s/%s/trackID=0 RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
-			mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++, mSessionId.c_str());
+	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
+			mVideoMediaSourceUrl.c_str(), mCSeq++, mSessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
 }
 
@@ -108,16 +108,31 @@ void RtspMediaSource::run() {
 			while (itr != rtspHeader->end()) {
 				if (itr->first == "Content-Length") {
 					contentLength = atoi(itr->second.c_str());
-					sp<Buffer> buffer = new Buffer(contentLength);
-					mSocket->readFully(buffer->data(), contentLength);
-					buffer->setRange(0, contentLength);
-					String sessionDesc((char*)buffer->data(), buffer->size());
-					printf("%s\n\n\n\n", sessionDesc.c_str());
-					List<String> lines = sessionDesc.split("\n");
-					List<String>::iterator itr = lines.begin();
-					while (itr != lines.end()) {
-						printf("%s\n", itr->c_str());
-						++itr;
+					if (contentLength > 0) {
+						sp<Buffer> buffer = new Buffer(contentLength);
+						mSocket->readFully(buffer->data(), contentLength);
+						buffer->setRange(0, contentLength);
+						String sessionDesc((char*)buffer->data(), buffer->size());
+						List<String> lines = sessionDesc.split("\n");
+						List<String>::iterator itr = lines.begin();
+						String mediaDesc;
+						String videoMediaDesc;
+
+						while (itr != lines.end()) {
+							if (itr->startsWith("m=")) {
+								mediaDesc = *itr;
+								if (mediaDesc.startsWith("m=video 0 RTP/AVP 96")) {
+									videoMediaDesc = mediaDesc;
+								} else {
+									videoMediaDesc = NULL;
+								}
+							} else if (itr->startsWith("a=")) {
+								if (itr->startsWith("a=control:") && !videoMediaDesc.isEmpty()) {
+									mVideoMediaSourceUrl = itr->substr(String::size("a=control:")).trim();
+								}
+							}
+							++itr;
+						}
 					}
 				} else if (itr->first == "Session") {
 					mSessionId = itr->second;

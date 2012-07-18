@@ -49,6 +49,7 @@ private:
 	android::lang::String mHost;
 	android::lang::String mPort;
 	android::lang::String mServiceDesc;
+	android::lang::String mVideoMediaSourceUrl;
 	sp<RtspSocket> mSocket;
 	uint32_t mCSeq;
 	State mState;
