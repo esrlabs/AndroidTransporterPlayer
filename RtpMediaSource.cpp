@@ -49,6 +49,9 @@ bool RtpMediaSource::start(uint16_t port, const sp<Message>& notifyAccessUnit) {
 	mAssembler = new RtpAvcAssembler(mQueue, notifyAccessUnit);
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
+	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
+	int size = 256 * 1024;
+	setsockopt(mRtpSocket->getSocketId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 	return Thread::start();
 }
 
