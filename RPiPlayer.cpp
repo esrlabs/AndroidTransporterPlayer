@@ -151,7 +151,6 @@ void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
 				printf("weia !!!\n");
 				return;
 			}
-			//itr++;
 		}
 	}
 }
@@ -331,7 +330,6 @@ int RPiPlayer::initOMXAudio() {
 		mEmptyOmxInputBuffers.push_back(omxBuffer);
 	}
 	assert(mEmptyOmxInputBuffers.size() == 10);
-
 	return 0;
 }
 
