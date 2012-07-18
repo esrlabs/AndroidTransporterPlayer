@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 using namespace android::os;
+using namespace android::util;
 using namespace android::lang;
 
 RPiPlayer::RPiPlayer() :
@@ -34,10 +35,18 @@ void RPiPlayer::stop() {
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
-	case NOTIFY_VIDEO_MEDIA_SOURCE: {
+	case NOTIFY_QUEUE_VIDEO_BUFFER: {
 		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
 		delete (sp<Buffer>*) message->obj;
-		onNotifyVideoMediaSource(accessUnit);
+		mVideoAccessUnits.push_back(accessUnit);
+		obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
+		break;
+	}
+	case NOTIFY_PLAY_VIDEO_BUFFER: {
+		if (!mVideoAccessUnits.empty()) {
+			onPlayVideoMediaSource(*mVideoAccessUnits.begin());
+			mVideoAccessUnits.erase(mVideoAccessUnits.begin());
+		}
 		break;
 	}
 	case STOP_MEDIA_SOURCE_DONE: {
@@ -63,13 +72,14 @@ void RPiPlayer::stopMediaSource() {
 	message->sendToTarget();
 }
 
-void RPiPlayer::onNotifyVideoMediaSource(const sp<Buffer>& accessUnit) {
+void RPiPlayer::onPlayVideoMediaSource(const sp<Buffer>& accessUnit) {
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	size_t omxBufferFillLevel;
 	size_t offset = 0;
+	int blockingMode = 0;
 
 	while (offset < accessUnit->size()) {
-		if ((omxBuffer = ilclient_get_input_buffer(mVideoDecoder, 130, 1)) != NULL) {
+		if ((omxBuffer = ilclient_get_input_buffer(mVideoDecoder, 130, blockingMode)) != NULL) {
 			unsigned char* pBuffer = omxBuffer->pBuffer;
 
 			size_t size = ((accessUnit->size() - offset) > omxBuffer->nAllocLen) ? omxBuffer->nAllocLen : (accessUnit->size() - offset);
@@ -114,8 +124,17 @@ void RPiPlayer::onNotifyVideoMediaSource(const sp<Buffer>& accessUnit) {
 			if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mVideoDecoder), omxBuffer) != OMX_ErrorNone) {
 				return;
 			}
+
+			blockingMode = 1;
+		} else {
+			break;
 		}
 	}
+}
+
+void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
+	RPiPlayer* self = (RPiPlayer*) args;
+	self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 }
 
 int RPiPlayer::initOMX() {
@@ -191,6 +210,8 @@ int RPiPlayer::initOMX() {
 	if (OMX_SetParameter(ILC_GET_HANDLE(mVideoDecoder), OMX_IndexParamVideoPortFormat, &format) == OMX_ErrorNone &&
 			ilclient_enable_port_buffers(mVideoDecoder, 130, NULL, NULL, NULL) == 0) {
 		ilclient_change_component_state(mVideoDecoder, OMX_StateExecuting);
+
+		ilclient_set_empty_buffer_done_callback(mClient, onEmptyBufferDone, this);
 		return 0;
 	} else {
 		return -9;

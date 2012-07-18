@@ -31,7 +31,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		if (message->arg1 == 0) {
 			//TODO: the DESCRIBE_SERVICE_DONE message has to contain the SDP service desc within a bundle.
 			mRtpVideoSource = new RtpMediaSource();
-			mRtpVideoSource->start(RTP_VIDEO_SOURCE_PORT, mPlayer->obtainMessage(RPiPlayer::NOTIFY_VIDEO_MEDIA_SOURCE));
+			mRtpVideoSource->start(RTP_VIDEO_SOURCE_PORT, mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER));
 			mRtspMediaSource->setupTrack(RTP_VIDEO_SOURCE_PORT, obtainMessage(SETUP_TRACK_DONE));
 		}
 		break;

@@ -4,6 +4,7 @@
 #include "android/os/LooperThread.h"
 #include "NetHandler.h"
 #include "android/lang/String.h"
+#include "android/util/List.h"
 extern "C" {
 #include "bcm_host.h"
 #include "ilclient.h"
@@ -15,8 +16,11 @@ class RPiPlayer :
 	public android::os::Handler
 {
 public:
-	static const uint32_t NOTIFY_VIDEO_MEDIA_SOURCE = 1;
-	static const uint32_t STOP_MEDIA_SOURCE_DONE = 2;
+	static const uint32_t NOTIFY_QUEUE_AUDIO_BUFFER = 1;
+	static const uint32_t NOTIFY_QUEUE_VIDEO_BUFFER = 2;
+	static const uint32_t NOTIFY_PLAY_AUDIO_BUFFER = 3;
+	static const uint32_t NOTIFY_PLAY_VIDEO_BUFFER = 4;
+	static const uint32_t STOP_MEDIA_SOURCE_DONE = 5;
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
@@ -30,9 +34,11 @@ private:
 	void stopMediaSource();
 	int initOMX();
 	void finalizeOMX();
-	void onNotifyVideoMediaSource(const sp<Buffer>& accessUnit);
+	void onPlayVideoMediaSource(const sp<Buffer>& accessUnit);
+	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
+	android::util::List< sp<Buffer> > mVideoAccessUnits;
 
 	TUNNEL_T mTunnel[4];
 	COMPONENT_T* mComponentList[5];
