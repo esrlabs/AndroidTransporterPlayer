@@ -27,8 +27,10 @@ public:
 			const sp<android::os::Message>& reply);
 	void stop();
 	void describeService(const sp<android::os::Message>& reply);
-	void setupTrack(uint16_t port, const sp<android::os::Message>& reply);
-	void playTrack(const sp<android::os::Message>& reply);
+	void setupAudioTrack(uint16_t port, const sp<android::os::Message>& reply);
+	void playAudioTrack(const sp<android::os::Message>& reply);
+	void setupVideoTrack(uint16_t port, const sp<android::os::Message>& reply);
+	void playVideoTrack(const sp<android::os::Message>& reply);
 
 private:
 	enum State {
@@ -36,10 +38,14 @@ private:
 		SETUP_MEDIA_SOURCE_DONE,
 		DESCRIBE_SERVICE,
 		DESCRIBE_SERVICE_DONE,
-		SETUP_TRACK,
-		SETUP_TRACK_DONE,
-		PLAY_TRACK,
-		PLAY_TRACK_DONE
+		SETUP_AUDIO_TRACK,
+		SETUP_AUDIO_TRACK_DONE,
+		PLAY_AUDIO_TRACK,
+		PLAY_AUDIO_TRACK_DONE,
+		SETUP_VIDEO_TRACK,
+		SETUP_VIDEO_TRACK_DONE,
+		PLAY_VIDEO_TRACK,
+		PLAY_VIDEO_TRACK_DONE
 	};
 
 	void start();
@@ -49,6 +55,7 @@ private:
 	android::lang::String mHost;
 	android::lang::String mPort;
 	android::lang::String mServiceDesc;
+	android::lang::String mAudioMediaSourceUrl;
 	android::lang::String mVideoMediaSourceUrl;
 	sp<RtspSocket> mSocket;
 	uint32_t mCSeq;

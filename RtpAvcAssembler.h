@@ -1,7 +1,7 @@
 #ifndef RTPAVCASSEMBLER_H_
 #define RTPAVCASSEMBLER_H_
 
-#include "android/os/Ref.h"
+#include "RtpAssembler.h"
 #include "android/util/List.h"
 
 class Buffer;
@@ -14,7 +14,8 @@ class Message;
 using android::os::sp;
 
 class RtpAvcAssembler :
-	public android::os::Ref {
+	public RtpAssembler
+{
 public:
 	enum Status {
 		OK,
@@ -25,7 +26,7 @@ public:
 	RtpAvcAssembler(android::util::List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
 	virtual ~RtpAvcAssembler();
 
-	void processMediaData();
+	virtual void processMediaData();
 
 private:
 	static const uint8_t F_BIT = 1 << 7;

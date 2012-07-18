@@ -40,17 +40,33 @@ void RtspMediaSource::describeService(const sp<Message>& reply) {
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
 }
 
-void RtspMediaSource::setupTrack(uint16_t port, const sp<Message>& reply) {
+void RtspMediaSource::setupAudioTrack(uint16_t port, const sp<Message>& reply) {
 	mReply = reply;
-	mState = SETUP_TRACK;
+	mState = SETUP_AUDIO_TRACK;
+	String setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
+			mAudioMediaSourceUrl.c_str(), mCSeq++, port, port + 1);
+	mSocket->write(setupMessage.c_str(), setupMessage.size());
+}
+
+void RtspMediaSource::playAudioTrack(const sp<android::os::Message>& reply) {
+	mReply = reply;
+	mState = PLAY_AUDIO_TRACK;
+	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
+			mAudioMediaSourceUrl.c_str(), mCSeq++, mSessionId.c_str());
+	mSocket->write(playMessage.c_str(), playMessage.size());
+}
+
+void RtspMediaSource::setupVideoTrack(uint16_t port, const sp<Message>& reply) {
+	mReply = reply;
+	mState = SETUP_VIDEO_TRACK;
 	String setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
 			mVideoMediaSourceUrl.c_str(), mCSeq++, port, port + 1);
 	mSocket->write(setupMessage.c_str(), setupMessage.size());
 }
 
-void RtspMediaSource::playTrack(const sp<android::os::Message>& reply) {
+void RtspMediaSource::playVideoTrack(const sp<android::os::Message>& reply) {
 	mReply = reply;
-	mState = PLAY_TRACK;
+	mState = PLAY_VIDEO_TRACK;
 	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
 			mVideoMediaSourceUrl.c_str(), mCSeq++, mSessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
@@ -116,19 +132,27 @@ void RtspMediaSource::run() {
 						List<String> lines = sessionDesc.split("\n");
 						List<String>::iterator itr = lines.begin();
 						String mediaDesc;
+						String audioMediaDesc;
 						String videoMediaDesc;
 
 						while (itr != lines.end()) {
+							printf("%s\n", itr->c_str());
 							if (itr->startsWith("m=")) {
 								mediaDesc = *itr;
-								if (mediaDesc.startsWith("m=video 0 RTP/AVP 96")) {
+								if (mediaDesc.startsWith("m=audio 0 RTP/AVP 10")) {
+									audioMediaDesc = mediaDesc;
+								} else if (mediaDesc.startsWith("m=video 0 RTP/AVP 96")) {
 									videoMediaDesc = mediaDesc;
 								} else {
 									videoMediaDesc = NULL;
 								}
 							} else if (itr->startsWith("a=")) {
-								if (itr->startsWith("a=control:") && !videoMediaDesc.isEmpty()) {
-									mVideoMediaSourceUrl = itr->substr(String::size("a=control:")).trim();
+								if (itr->startsWith("a=control:")) {
+									if (!audioMediaDesc.isEmpty()) {
+										mAudioMediaSourceUrl = itr->substr(String::size("a=control:")).trim();
+									} else if (!videoMediaDesc.isEmpty()) {
+										mVideoMediaSourceUrl = itr->substr(String::size("a=control:")).trim();
+									}
 								}
 							}
 							++itr;
@@ -144,20 +168,8 @@ void RtspMediaSource::run() {
 			// TODO: make class state thread-safe
 			sp<Message> reply = mReply;
 			mReply = NULL;
-
-			if (mState == DESCRIBE_SERVICE) {
-				reply->arg1 = 0;
-				mState = DESCRIBE_SERVICE_DONE;
-				reply->sendToTarget();
-			} else if (mState == SETUP_TRACK) {
-				reply->arg1 = 0;
-				mState = SETUP_TRACK_DONE;
-				reply->sendToTarget();
-			} else if (mState == PLAY_TRACK) {
-				reply->arg1 = 0;
-				mState = PLAY_TRACK_DONE;
-				reply->sendToTarget();
-			}
+			reply->arg1 = 0;
+			reply->sendToTarget();
 		}
 	}
 }

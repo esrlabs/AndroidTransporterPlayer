@@ -2,7 +2,7 @@
 #include "android/os/Handler.h"
 #include "android/net/DatagramSocket.h"
 #include "Buffer.h"
-#include "RtpAvcAssembler.h"
+#include "RtpAssembler.h"
 #include <stdio.h>
 #include <sys/socket.h>
 
@@ -45,8 +45,8 @@ void RtpMediaSource::run() {
 	}
 }
 
-bool RtpMediaSource::start(uint16_t port, const sp<Message>& notifyAccessUnit) {
-	mAssembler = new RtpAvcAssembler(mQueue, notifyAccessUnit);
+bool RtpMediaSource::start(uint16_t port, sp<RtpAssembler> assembler) {
+	mAssembler = assembler;
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.

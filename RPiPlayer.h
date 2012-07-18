@@ -34,7 +34,7 @@ private:
 	void stopMediaSource();
 	int initOMX();
 	void finalizeOMX();
-	void onPlayVideoMediaSource(const sp<Buffer>& accessUnit);
+	void onPlayVideoBuffer(const sp<Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;

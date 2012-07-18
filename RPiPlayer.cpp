@@ -44,7 +44,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 	}
 	case NOTIFY_PLAY_VIDEO_BUFFER: {
 		if (!mVideoAccessUnits.empty()) {
-			onPlayVideoMediaSource(*mVideoAccessUnits.begin());
+			onPlayVideoBuffer(*mVideoAccessUnits.begin());
 			mVideoAccessUnits.erase(mVideoAccessUnits.begin());
 		}
 		break;
@@ -72,7 +72,7 @@ void RPiPlayer::stopMediaSource() {
 	message->sendToTarget();
 }
 
-void RPiPlayer::onPlayVideoMediaSource(const sp<Buffer>& accessUnit) {
+void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	size_t omxBufferFillLevel;
 	size_t offset = 0;

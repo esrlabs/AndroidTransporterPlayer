@@ -6,7 +6,7 @@
 #include "MediaSourceType.h"
 
 class Buffer;
-class RtpAvcAssembler;
+class RtpAssembler;
 namespace android {
 namespace os {
 class Message;
@@ -24,10 +24,12 @@ public:
 	RtpMediaSource();
 	virtual ~RtpMediaSource();
 
-	bool start(uint16_t port, const sp<android::os::Message>& notifyAccessUnit);
+	bool start(uint16_t port, sp<RtpAssembler> assembler);
 	void stop();
 
 	virtual void run();
+
+	android::util::List< sp<Buffer> >& getBufferQueue() { return mQueue; }
 
 private:
 	static const uint32_t MAX_UDP_PACKET_SIZE = 65536;
@@ -43,7 +45,7 @@ private:
 	sp<android::net::DatagramSocket> mRtpSocket;
 	sp<android::net::DatagramSocket> mRtcpSocket;
 	android::util::List< sp<Buffer> > mQueue;
-	sp<RtpAvcAssembler> mAssembler;
+	sp<RtpAssembler> mAssembler;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;
 	MediaSourceType mType;

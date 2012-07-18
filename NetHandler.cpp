@@ -1,6 +1,7 @@
 #include "NetHandler.h"
 #include "RPiPlayer.h"
 #include "Bundle.h"
+#include "RtpAvcAssembler.h"
 #include <stdio.h>
 
 using namespace android::os;
@@ -30,23 +31,26 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 	case DESCRIBE_SERVICE_DONE: {
 		if (message->arg1 == 0) {
 			//TODO: the DESCRIBE_SERVICE_DONE message has to contain the SDP service desc within a bundle.
+			mRtpAudioSource = new RtpMediaSource();
 			mRtpVideoSource = new RtpMediaSource();
-			mRtpVideoSource->start(RTP_VIDEO_SOURCE_PORT, mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER));
-			mRtspMediaSource->setupTrack(RTP_VIDEO_SOURCE_PORT, obtainMessage(SETUP_TRACK_DONE));
+			mRtpVideoSource->start(RTP_VIDEO_SOURCE_PORT, new RtpAvcAssembler(mRtpVideoSource->getBufferQueue(),
+					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
+			mRtspMediaSource->setupVideoTrack(RTP_VIDEO_SOURCE_PORT, obtainMessage(SETUP_VIDEO_TRACK_DONE));
 		}
 		break;
 	}
-	case SETUP_TRACK_DONE: {
+	case SETUP_VIDEO_TRACK_DONE: {
 		if (message->arg1 == 0) {
-			mRtspMediaSource->playTrack(obtainMessage(PLAY_TRACK_DONE));
+			mRtspMediaSource->playVideoTrack(obtainMessage(PLAY_VIDEO_TRACK_DONE));
 		}
 		break;
 	}
-	case PLAY_TRACK_DONE: {
+	case PLAY_VIDEO_TRACK_DONE: {
 		break;
 	}
 	case STOP_MEDIA_SOURCE: {
 		mRtspMediaSource->stop();
+		mRtpAudioSource->stop();
 		mRtpVideoSource->stop();
 		Bundle* bundle = (Bundle*) message->obj;
 		sp<Message> reply = bundle->reply;
