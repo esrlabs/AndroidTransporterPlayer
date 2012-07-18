@@ -25,7 +25,9 @@ RPiPlayer::~RPiPlayer() {
 }
 
 void RPiPlayer::start(android::lang::String url) {
-	assert(initOMX() == 0);
+	bcm_host_init();
+	assert(initOMXAudio() == 0);
+	assert(initOMXVideo() == 0);
 	startMediaSource(url);
 }
 
@@ -35,6 +37,20 @@ void RPiPlayer::stop() {
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
+	case NOTIFY_QUEUE_AUDIO_BUFFER: {
+		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
+		delete (sp<Buffer>*) message->obj;
+		mAudioAccessUnits.push_back(accessUnit);
+		obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
+		break;
+	}
+	case NOTIFY_PLAY_AUDIO_BUFFER: {
+		if (!mAudioAccessUnits.empty()) {
+			onPlayAudioBuffer(*mAudioAccessUnits.begin());
+			mAudioAccessUnits.erase(mAudioAccessUnits.begin());
+		}
+		break;
+	}
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
 		sp<Bundle> bundle = message->getData();
 		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
@@ -54,7 +70,8 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		mNetLooper->join();
 		mNetLooper = NULL;
 		Looper::myLooper()->quit();
-//		finalizeOMX();
+//		finalizeOMXAudio();
+//		finalizeOMXVideo();
 		break;
 	}
 	}
@@ -76,6 +93,10 @@ void RPiPlayer::stopMediaSource() {
 	bundle->putObject("Reply", obtainMessage(STOP_MEDIA_SOURCE_DONE));
 	message->setData(bundle);
 	message->sendToTarget();
+}
+
+void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
+
 }
 
 void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
@@ -132,7 +153,8 @@ void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
 			}
 
 			blockingMode = 1;
-		} else {
+		} else {	int initOMXAudio();
+		void finalizeOMXAudio();
 			break;
 		}
 	}
@@ -143,11 +165,16 @@ void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 	self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 }
 
-int RPiPlayer::initOMX() {
+int RPiPlayer::initOMXAudio() {
+	return 0;
+}
+
+void RPiPlayer::finalizeOMXAudio() {
+}
+
+int RPiPlayer::initOMXVideo() {
 	OMX_VIDEO_PARAM_PORTFORMATTYPE format;
 	OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
-
-	bcm_host_init();
 
 	memset(mComponentList, 0, sizeof(mComponentList));
 	memset(mTunnel, 0, sizeof(mTunnel));
@@ -224,7 +251,7 @@ int RPiPlayer::initOMX() {
 	}
 }
 
-void RPiPlayer::finalizeOMX() {
+void RPiPlayer::finalizeOMXVideo() {
 	ilclient_disable_tunnel(mTunnel);
 	ilclient_disable_tunnel(mTunnel + 1);
 	ilclient_disable_tunnel(mTunnel + 2);
