@@ -38,7 +38,7 @@ String RtspSocket::readLine() {
 	return result > 0 ? line.trim() : String(NULL);
 }
 
-RtspHeader* RtspSocket::readPacket() {
+RtspHeader* RtspSocket::readPacketHeader() {
 	RtspHeader* rtspHeader = new RtspHeader();
 	String line;
 	do {

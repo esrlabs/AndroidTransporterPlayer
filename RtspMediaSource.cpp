@@ -35,7 +35,8 @@ void RtspMediaSource::describeService(const sp<Message>& reply) {
 	mReply = reply;
 	assert(mReply != NULL);
 	mState = DESCRIBE_SERVICE;
-	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\n\r\n", mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++);
+	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\n\r\n",
+			mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++);
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
 }
 
@@ -101,13 +102,12 @@ void RtspMediaSource::run() {
 	}
 
 	while (!isInterrupted()) {
-		RtspHeader* rtspHeader = mSocket->readPacket();
+		RtspHeader* rtspHeader = mSocket->readPacketHeader();
 		if (rtspHeader != NULL) {
-			uint32_t contentLength;
 			RtspHeader::iterator itr = rtspHeader->begin();
 			while (itr != rtspHeader->end()) {
 				if (itr->first == "Content-Length") {
-					contentLength = atoi(itr->second.c_str());
+					size_t contentLength = atoi(itr->second.c_str());
 					if (contentLength > 0) {
 						sp<Buffer> buffer = new Buffer(contentLength);
 						mSocket->readFully(buffer->data(), contentLength);

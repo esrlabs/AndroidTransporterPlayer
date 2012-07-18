@@ -16,7 +16,7 @@ public:
 	RtspSocket(const char* host, uint16_t port);
 	virtual ~RtspSocket() {}
 	android::lang::String readLine();
-	RtspHeader* readPacket();
+	RtspHeader* readPacketHeader();
 
 private:
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(RtspSocket)
