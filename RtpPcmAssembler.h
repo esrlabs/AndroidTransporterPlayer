@@ -25,6 +25,8 @@ public:
 private:
 	android::util::List< sp<Buffer> >& mQueue;
 	sp<android::os::Message> mNotifyAccessUnit;
+	sp<Buffer> mAccessUnit;
+	int mAccessUnitOffset;
 };
 
 #endif /* RTPPCMASSEMBLER_H_ */

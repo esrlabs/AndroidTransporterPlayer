@@ -6,7 +6,7 @@
 using namespace android::os;
 using namespace android::lang;
 
-int main(int argc, char**argv)
+int main(int argc, char** argv)
 {
 	if (argc < 2) {
 		printf("Usage: rtsp://<Host>:<Port>/<SDP-File>\n");

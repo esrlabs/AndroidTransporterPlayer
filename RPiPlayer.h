@@ -30,7 +30,7 @@ public:
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
-	void start(android::lang::String url);
+	bool start(android::lang::String url);
 	void stop();
 
 	virtual void handleMessage(const sp<android::os::Message>& message);
@@ -39,6 +39,7 @@ private:
 	bool startMediaSource(const android::lang::String& url);
 	void stopMediaSource();
 	int initOMXAudio();
+	bool setAudioSink(const char* sinkName);
 	void finalizeOMXAudio();
 	int initOMXVideo();
 	void finalizeOMXVideo();
@@ -50,15 +51,23 @@ private:
 	android::util::List< sp<android::util::Buffer> > mAudioAccessUnits;
 	android::util::List< sp<android::util::Buffer> > mVideoAccessUnits;
 
+	// Audio
+	ILCLIENT_T* mAudioClient;
+	COMPONENT_T* mAudioRenderer;
+	COMPONENT_T* mAudioComponentList[2];
+	OMX_BUFFERHEADERTYPE* mAudioBuffer;
+	bool mFirstPacketAudio;
+
+	// Video
+	ILCLIENT_T* mVideoClient;
 	TUNNEL_T mTunnel[4];
-	COMPONENT_T* mComponentList[5];
-	ILCLIENT_T* mClient;
+	COMPONENT_T* mVideoComponentList[5];
 	COMPONENT_T* mVideoDecoder;
 	COMPONENT_T* mVideoScheduler;
 	COMPONENT_T* mVideoRenderer;
 	COMPONENT_T* mClock;
 	bool mPortSettingsChanged;
-	bool mFirstPacket;
+	bool mFirstPacketVideo;
 };
 
 #endif /* RPIPLAYER_H_ */
