@@ -1,5 +1,6 @@
 #include "RtspMediaSource.h"
 #include "RtspSocket.h"
+#include "Buffer.h"
 #include "Bundle.h"
 #include "android/os/Message.h"
 #include "android/os/Handler.h"
@@ -7,6 +8,7 @@
 
 using namespace android::os;
 using namespace android::lang;
+using namespace android::util;
 using namespace android::net;
 
 RtspMediaSource::RtspMediaSource() :
@@ -31,6 +33,7 @@ void RtspMediaSource::stop() {
 
 void RtspMediaSource::describeService(const sp<Message>& reply) {
 	mReply = reply;
+	assert(mReply != NULL);
 	mState = DESCRIBE_SERVICE;
 	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\n\r\n", mHost.c_str(), mPort.c_str(), mServiceDesc.c_str(), mCSeq++);
 	mSocket->write(describeMessage.c_str(), describeMessage.size());
@@ -52,7 +55,7 @@ void RtspMediaSource::playTrack(const sp<android::os::Message>& reply) {
 	mSocket->write(playMessage.c_str(), playMessage.size());
 }
 
-void RtspMediaSource::setupMediaSource(sp<Message> reply) {
+bool RtspMediaSource::setupMediaSource(sp<Message> reply) {
 	if (!mUrl.startsWith("rtsp://")) {
 		reply->arg1 = -1;
 		reply->sendToTarget();
@@ -66,6 +69,7 @@ void RtspMediaSource::setupMediaSource(sp<Message> reply) {
 	} else {
 		reply->arg1 = -1;
 		reply->sendToTarget();
+		return false;
 	}
 
 	separatorIndex = mediaSource.indexOf(":");
@@ -81,19 +85,18 @@ void RtspMediaSource::setupMediaSource(sp<Message> reply) {
 	if (!mSocket->connect(mHost.c_str(), atoi(mPort.c_str()))) {
 		reply->arg1 = -1;
 		reply->sendToTarget();
+		return false;
 	}
+	mState = SETUP_MEDIA_SOURCE_DONE;
 	reply->arg1 = 0;
 	reply->sendToTarget();
-	mState = SETUP_MEDIA_SOURCE_DONE;
+	return true;
 }
 
 void RtspMediaSource::run() {
 	setSchedulingParams(SCHED_OTHER, -16);
 
-	setupMediaSource(mReply);
-	int32_t resultCode = mReply->arg1;
-	mReply = NULL;
-	if (resultCode != 0) {
+	if (!setupMediaSource(mReply)) {
 		return;
 	}
 
@@ -103,12 +106,19 @@ void RtspMediaSource::run() {
 			uint32_t contentLength;
 			RtspHeader::iterator itr = rtspHeader->begin();
 			while (itr != rtspHeader->end()) {
-				printf("%s: %s\n", itr->first.c_str(), itr->second.c_str());
 				if (itr->first == "Content-Length") {
 					contentLength = atoi(itr->second.c_str());
-					uint8_t data[contentLength];
-					mSocket->readFully(data, contentLength);
-					printf("%s\n", String((char*)data, contentLength).c_str());
+					sp<Buffer> buffer = new Buffer(contentLength);
+					mSocket->readFully(buffer->data(), contentLength);
+					buffer->setRange(0, contentLength);
+					String sessionDesc((char*)buffer->data(), buffer->size());
+					printf("%s\n\n\n\n", sessionDesc.c_str());
+					List<String> lines = sessionDesc.split("\n");
+					List<String>::iterator itr = lines.begin();
+					while (itr != lines.end()) {
+						printf("%s\n", itr->c_str());
+						++itr;
+					}
 				} else if (itr->first == "Session") {
 					mSessionId = itr->second;
 				}
@@ -116,6 +126,7 @@ void RtspMediaSource::run() {
 			}
 			delete rtspHeader;
 
+			// TODO: make class state thread-safe
 			sp<Message> reply = mReply;
 			mReply = NULL;
 

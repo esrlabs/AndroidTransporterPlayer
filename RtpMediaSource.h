@@ -2,7 +2,7 @@
 #define RTPMEDIASOURCE_H_
 
 #include "android/os/Thread.h"
-#include "List.h"
+#include "android/util/List.h"
 #include "MediaSourceType.h"
 
 class Buffer;
@@ -42,7 +42,7 @@ private:
 
 	sp<android::net::DatagramSocket> mRtpSocket;
 	sp<android::net::DatagramSocket> mRtcpSocket;
-	List< sp<Buffer> > mQueue;
+	android::util::List< sp<Buffer> > mQueue;
 	sp<RtpAvcAssembler> mAssembler;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;

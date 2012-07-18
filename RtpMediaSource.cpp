@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 
 using namespace android::os;
+using namespace android::util;
 using namespace android::net;
 
 RtpMediaSource::RtpMediaSource() :

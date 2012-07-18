@@ -2,7 +2,7 @@
 #define RTPAVCASSEMBLER_H_
 
 #include "android/os/Ref.h"
-#include "List.h"
+#include "android/util/List.h"
 
 class Buffer;
 namespace android {
@@ -22,7 +22,7 @@ public:
 		SEQ_NUMBER_FAILURE,
 	};
 
-	RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
+	RtpAvcAssembler(android::util::List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
 	virtual ~RtpAvcAssembler();
 
 	void processMediaData();
@@ -37,7 +37,7 @@ private:
 	void processSingleNalUnit(sp<Buffer> nalUnit);
 	Status processFragNalUnit();
 
-	List< sp<Buffer> >& mQueue;
+	android::util::List< sp<Buffer> >& mQueue;
 	sp<android::os::Message> mNotifyAccessUnit;
 	uint32_t mSeqNumber;
 	bool mInitSeqNumber;

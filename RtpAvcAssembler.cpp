@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 using namespace android::os;
+using namespace android::util;
 
 RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& notifyAccessUnit) :
 		mQueue(queue),

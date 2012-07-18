@@ -3,6 +3,7 @@
 
 #include "android/os/Thread.h"
 #include "android/lang/String.h"
+#include "android/util/List.h"
 
 class RtspSocket;
 namespace android {
@@ -42,7 +43,7 @@ private:
 	};
 
 	void start();
-	void setupMediaSource(sp<android::os::Message> reply);
+	bool setupMediaSource(sp<android::os::Message> reply);
 
 	android::lang::String mUrl;
 	android::lang::String mHost;
