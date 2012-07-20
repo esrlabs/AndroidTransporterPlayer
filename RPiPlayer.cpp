@@ -4,6 +4,7 @@
 #include "android/util/Buffer.h"
 #include <stdio.h>
 #include <unistd.h>
+#include "android/os/Clock.h"
 
 using namespace android::os;
 using namespace android::util;
@@ -51,21 +52,30 @@ void RPiPlayer::stop() {
 }
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
+	static uint64_t time = 0;
+	//printf("what: %d\n", message->what);
 	switch (message->what) {
 	case NOTIFY_QUEUE_AUDIO_BUFFER: {
+		uint64_t now = Clock::monotonicTime();
+
 		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
+		if(time != 0) {
+			//printf("clock: %lld -> %lu bytes\n", (now-time), accessUnit->size());
+		}
+		time = now;
 		delete (sp<Buffer>*) message->obj;
 		mAudioAccessUnits.push_back(accessUnit);
-		obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
+		printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
+		obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
 		break;
 	}
 	case NOTIFY_PLAY_AUDIO_BUFFER: {
-		if (!mAudioAccessUnits.empty()) {
-			onPlayAudioBuffer(*mAudioAccessUnits.begin());
-			mAudioAccessUnits.erase(mAudioAccessUnits.begin());
-		}
+		onPlayAudioBuffer(*mAudioAccessUnits.begin());
 		break;
 	}
+	case NOTIFY_FILL_INPUT_BUFFERS:
+		onFillInputBuffers();
+		break;
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
 		sp<Bundle> bundle = message->getData();
 		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
@@ -80,6 +90,9 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		}
 		break;
 	}
+	case NOTIFY_INPUT_BUFFER_FILLED:
+		onInputBufferFilled();
+		break;
 	case STOP_MEDIA_SOURCE_DONE: {
 		mNetLooper->getLooper()->quit();
 		mNetLooper->join();
@@ -110,48 +123,45 @@ void RPiPlayer::stopMediaSource() {
 	message->sendToTarget();
 }
 
+void RPiPlayer::onFillInputBuffers() {
+	while (!mAudioAccessUnits.empty() && !mEmptyOmxInputBuffers.empty()) {
+		OMX_BUFFERHEADERTYPE* omxBuffer = *mEmptyOmxInputBuffers.begin();
+		mEmptyOmxInputBuffers.erase(mEmptyOmxInputBuffers.begin());
+		sp<Buffer> accessUnit = *mAudioAccessUnits.begin();
+		mAudioAccessUnits.erase(mAudioAccessUnits.begin());
+
+		unsigned char* pBuffer = omxBuffer->pBuffer;
+		size_t size = accessUnit->size();
+		memcpy(pBuffer, accessUnit->data(), size);
+		omxBuffer->nOffset = 0;
+		omxBuffer->nFilledLen = size;
+
+		mFilledOmxInputBuffers.push_back(omxBuffer);
+		obtainMessage(NOTIFY_INPUT_BUFFER_FILLED)->sendToTarget();
+	}
+}
+
 void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
-	OMX_BUFFERHEADERTYPE* omxBuffer;
-	size_t omxBufferFillLevel;
-	size_t offset = 0;
-	int blockingMode = 0;
-
-	while (offset < accessUnit->size()) {
-		if ((omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, blockingMode)) != NULL) {
-
-			omxBuffer->pAppPrivate = mAudioBuffer;
-			mAudioBuffer = omxBuffer;
-
-			unsigned char* pBuffer = omxBuffer->pBuffer;
-
-			size_t size = ((accessUnit->size() - offset) > omxBuffer->nAllocLen) ? omxBuffer->nAllocLen : (accessUnit->size() - offset);
-			memcpy(pBuffer, accessUnit->data() + offset, size);
-			omxBufferFillLevel = size;
-			offset += size;
-
-			if (omxBufferFillLevel == 0) {
-				return;
-			}
-
-			omxBuffer->nOffset = 0;
-			omxBuffer->nFilledLen = omxBufferFillLevel;
-			omxBufferFillLevel = 0;
-
-			if (mFirstPacketAudio) {
-				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
-				mFirstPacketAudio = false;
-			} else {
-				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
-			}
-
+	if (mFilledOmxInputBuffers.size() > 0) {
+		List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers.begin();
+		while (itr != mFilledOmxInputBuffers.end()) {
+			OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
+			itr = mFilledOmxInputBuffers.erase(itr);
 			if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer) != OMX_ErrorNone) {
+				printf("weia !!!\n");
 				return;
 			}
-
-			blockingMode = 1;
-		} else {
-			break;
+			//itr++;
 		}
+	}
+}
+
+void RPiPlayer::onInputBufferFilled() {
+	static int startup = 0;
+	if (startup < 2) {
+		++startup;
+	} else {
+		obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
 	}
 }
 
@@ -218,8 +228,11 @@ void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
 void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 	RPiPlayer* self = (RPiPlayer*) args;
 	if (component == self->mAudioRenderer) {
-		self->obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
-	} else if (component == self->mVideoDecoder) {
+		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(self->mAudioRenderer, 100, 1);
+		assert(omxBuffer);
+		self->mEmptyOmxInputBuffers.push_back(omxBuffer);
+		self->obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
+	} else if(component == self->mVideoDecoder) {
 		self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 	} else {
 		assert(false);
@@ -312,6 +325,13 @@ int RPiPlayer::initOMXAudio() {
     ilclient_change_component_state(mAudioRenderer, OMX_StateExecuting);
 
     ilclient_set_empty_buffer_done_callback(mAudioClient, onEmptyBufferDone, this);
+
+	OMX_BUFFERHEADERTYPE* omxBuffer;
+	while ((omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, 0)) != NULL) {
+		mEmptyOmxInputBuffers.push_back(omxBuffer);
+	}
+	assert(mEmptyOmxInputBuffers.size() == 10);
+
 	return 0;
 }
 

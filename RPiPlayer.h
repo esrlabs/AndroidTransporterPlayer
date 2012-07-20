@@ -27,6 +27,8 @@ public:
 	static const uint32_t NOTIFY_PLAY_AUDIO_BUFFER = 3;
 	static const uint32_t NOTIFY_PLAY_VIDEO_BUFFER = 4;
 	static const uint32_t STOP_MEDIA_SOURCE_DONE = 5;
+	static const uint32_t NOTIFY_FILL_INPUT_BUFFERS = 6;
+	static const uint32_t NOTIFY_INPUT_BUFFER_FILLED = 7;
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
@@ -44,6 +46,8 @@ private:
 	int initOMXVideo();
 	void finalizeOMXVideo();
 	void onPlayAudioBuffer(const sp<android::util::Buffer>& accessUnit);
+	void onFillInputBuffers();
+	void onInputBufferFilled();
 	void onPlayVideoBuffer(const sp<android::util::Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
@@ -68,6 +72,9 @@ private:
 	COMPONENT_T* mClock;
 	bool mPortSettingsChanged;
 	bool mFirstPacketVideo;
+
+	android::util::List< OMX_BUFFERHEADERTYPE* > mFilledOmxInputBuffers;
+	android::util::List< OMX_BUFFERHEADERTYPE* > mEmptyOmxInputBuffers;
 };
 
 #endif /* RPIPLAYER_H_ */
