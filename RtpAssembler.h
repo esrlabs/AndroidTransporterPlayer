@@ -7,7 +7,7 @@ class RtpAssembler :
 	public android::os::Ref
 {
 public:
-	virtual void processMediaData() = 0;
+	virtual void processMediaQueue() = 0;
 };
 
 #endif /* RTPASSEMBLER_H_ */

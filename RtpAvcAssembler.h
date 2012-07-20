@@ -4,10 +4,12 @@
 #include "RtpAssembler.h"
 #include "android/util/List.h"
 
-class Buffer;
 namespace android {
 namespace os {
 class Message;
+}
+namespace util {
+class Buffer;
 }
 }
 
@@ -23,10 +25,10 @@ public:
 		SEQ_NUMBER_FAILURE,
 	};
 
-	RtpAvcAssembler(android::util::List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
+	RtpAvcAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
 	virtual ~RtpAvcAssembler();
 
-	virtual void processMediaData();
+	virtual void processMediaQueue();
 
 private:
 	static const uint8_t F_BIT = 1 << 7;
@@ -34,11 +36,11 @@ private:
 	static const uint8_t FU_END_BIT = 1 << 6;
 	static const uint64_t TIME_PERIOD_20MS = 20000000LL;
 
-	Status assembleMediaData();
-	void processSingleNalUnit(sp<Buffer> nalUnit);
+	Status assembleNalUnits();
+	void processSingleNalUnit(sp<android::util::Buffer> nalUnit);
 	Status processFragNalUnit();
 
-	android::util::List< sp<Buffer> >& mQueue;
+	android::util::List< sp<android::util::Buffer> >& mQueue;
 	sp<android::os::Message> mNotifyAccessUnit;
 	uint32_t mSeqNumber;
 	bool mInitSeqNumber;

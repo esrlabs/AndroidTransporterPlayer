@@ -1,9 +1,8 @@
 #include "RtspMediaSource.h"
 #include "RtspSocket.h"
-#include "Buffer.h"
-#include "Bundle.h"
 #include "android/os/Message.h"
 #include "android/os/Handler.h"
+#include "android/util/Buffer.h"
 #include <stdio.h>
 
 using namespace android::os;

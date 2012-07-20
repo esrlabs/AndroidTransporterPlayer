@@ -1,7 +1,7 @@
 #include "RPiPlayer.h"
 #include <errno.h>
-#include "Bundle.h"
-#include "Buffer.h"
+#include "android/os/Bundle.h"
+#include "android/util/Buffer.h"
 #include <stdio.h>
 #include <unistd.h>
 
@@ -36,8 +36,8 @@ void RPiPlayer::stop() {
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
-		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
-		delete (sp<Buffer>*) message->obj;
+		sp<Bundle> bundle = message->getData();
+		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
 		mVideoAccessUnits.push_back(accessUnit);
 		obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 		break;
@@ -61,14 +61,19 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 
 bool RPiPlayer::setupMediaSource(const android::lang::String& url) {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::SETUP_MEDIA_SOURCE);
-	message->obj = new Bundle(this, url, NULL);
+	sp<Bundle> bundle = new Bundle();
+	bundle->putObject("Player", this);
+	bundle->putString("Url", url);
+	message->setData(bundle);
 	message->sendToTarget();
 	return true;
 }
 
 void RPiPlayer::stopMediaSource() {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::STOP_MEDIA_SOURCE);
-	message->obj = new Bundle(NULL, String(NULL), obtainMessage(STOP_MEDIA_SOURCE_DONE));
+	sp<Bundle> bundle = new Bundle();
+	bundle->putObject("Reply", obtainMessage(STOP_MEDIA_SOURCE_DONE));
+	message->setData(bundle);
 	message->sendToTarget();
 }
 

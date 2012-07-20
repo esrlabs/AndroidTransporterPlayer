@@ -10,6 +10,12 @@ extern "C" {
 #include "ilclient.h"
 }
 
+namespace android {
+namespace util {
+class Buffer;
+}
+}
+
 using android::os::sp;
 
 class RPiPlayer :
@@ -34,11 +40,11 @@ private:
 	void stopMediaSource();
 	int initOMX();
 	void finalizeOMX();
-	void onPlayVideoBuffer(const sp<Buffer>& accessUnit);
+	void onPlayVideoBuffer(const sp<android::util::Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
-	android::util::List< sp<Buffer> > mVideoAccessUnits;
+	android::util::List< sp<android::util::Buffer> > mVideoAccessUnits;
 
 	TUNNEL_T mTunnel[4];
 	COMPONENT_T* mComponentList[5];

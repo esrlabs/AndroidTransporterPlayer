@@ -1,81 +1,112 @@
 #include "RtpMediaSource.h"
 #include "android/os/Handler.h"
+#include "android/util/Buffer.h"
 #include "android/net/DatagramSocket.h"
-#include "Buffer.h"
 #include "RtpAssembler.h"
 #include <stdio.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 using namespace android::os;
 using namespace android::util;
 using namespace android::net;
 
-RtpMediaSource::RtpMediaSource() :
+RtpMediaSource::RtpMediaSource(uint16_t port) :
 		mRtpPacketCounter(0),
 		mHighestSeqNumber(0) {
+	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET));
 }
 
 RtpMediaSource::~RtpMediaSource() {
 }
 
-void RtpMediaSource::run() {
+bool RtpMediaSource::start(sp<RtpAssembler> assembler) {
+	mAssembler = assembler;
+	return mNetReceiver->start();
+}
+
+void RtpMediaSource::stop() {
+	mNetReceiver->stop();
+	removeCallbacksAndMessages();
+}
+
+void RtpMediaSource::handleMessage(const sp<Message>& message) {
+	switch (message->what) {
+	case NOTIFY_RTP_PACKET:
+		sp<Bundle> bundle = message->getData();
+		sp<Buffer> buffer = bundle->getObject<Buffer>("RTP-Packet");
+		if (parseRtpHeader(buffer) == 0) {
+			processRtpPayload(buffer);
+		}
+		break;
+	}
+}
+
+RtpMediaSource::NetReceiver::NetReceiver(uint16_t port, sp<Message> notifyRtpPacket) :
+		mNotifyRtpPacket(notifyRtpPacket) {
+	mRtpSocket = new DatagramSocket(port);
+	mRtcpSocket = new DatagramSocket(port + 1);
+	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
+	int size = 256 * 1024;
+	setsockopt(mRtpSocket->getId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+
+	// This pipe is used to unblock the 'select' call when stopping the NetReceiver.
+	pipe(mPipe);
+	int flags = fcntl(mPipe[0], F_GETFL);
+	flags |= O_NONBLOCK;
+	fcntl(mPipe[0], F_SETFL, flags);
+	flags = fcntl(mPipe[1], F_GETFL);
+	flags |= O_NONBLOCK;
+	fcntl(mPipe[1], F_SETFL, flags);
+}
+
+void RtpMediaSource::NetReceiver::stop() {
+	interrupt();
+	mRtpSocket->close();
+	mRtcpSocket->close();
+	write(mPipe[1], "X", 1);
+	join();
+	// mNotifyRtpPacket holds a (circular) dependency to the RtpMediaSource handler.
+	mNotifyRtpPacket = NULL;
+}
+
+void RtpMediaSource::NetReceiver::run() {
 	setSchedulingParams(SCHED_OTHER, -16);
 
 	while (!isInterrupted()) {
 		fd_set sockets;
 		FD_ZERO(&sockets);
 
-		FD_SET(mRtpSocket->getSocketId(), &sockets);
-		FD_SET(mRtcpSocket->getSocketId(), &sockets);
+		FD_SET(mRtpSocket->getId(), &sockets);
+		FD_SET(mRtcpSocket->getId(), &sockets);
+		FD_SET(mPipe[0], &sockets);
 
-		int maxSocketId = mRtpSocket->getSocketId();
-		if (mRtcpSocket->getSocketId() > maxSocketId) {
-			maxSocketId = mRtcpSocket->getSocketId();
+		int maxId = mRtpSocket->getId();
+		if (mRtcpSocket->getId() > maxId) {
+			maxId = mRtcpSocket->getId();
+		}
+		if (mPipe[0] > maxId) {
+			maxId = mPipe[0];
 		}
 
-		int result = select(maxSocketId + 1, &sockets, NULL, NULL, NULL);
-
+		int result = select(maxId + 1, &sockets, NULL, NULL, NULL);
 		if (result > 0) {
-			if (FD_ISSET(mRtpSocket->getSocketId(), &sockets)) {
-				processMediaData(mRtpSocket);
-			} else if (FD_ISSET(mRtcpSocket->getSocketId(), &sockets)) {
-				processMediaData(mRtcpSocket);
+			if (FD_ISSET(mRtpSocket->getId(), &sockets)) {
+				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
+				ssize_t size = mRtpSocket->recv(buffer->data(), buffer->capacity());
+				if (size > 0) {
+					buffer->setRange(0, size);
+					sp<Message> msg = mNotifyRtpPacket->dup();
+					sp<Bundle> bundle = new Bundle();
+					bundle->putObject("RTP-Packet", buffer);
+					msg->setData(bundle);
+					msg->sendToTarget();
+				}
+			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
 			}
 		}
 	}
-}
-
-bool RtpMediaSource::start(uint16_t port, sp<RtpAssembler> assembler) {
-	mAssembler = assembler;
-	mRtpSocket = new DatagramSocket(port);
-	mRtcpSocket = new DatagramSocket(port + 1);
-	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
-	int size = 256 * 1024;
-	setsockopt(mRtpSocket->getSocketId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-	return Thread::start();
-}
-
-void RtpMediaSource::stop() {
-	interrupt();
-	mRtpSocket->close();
-	mRtcpSocket->close();
-	join();
-}
-
-bool RtpMediaSource::processMediaData(sp<DatagramSocket> socket) {
-    sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
-
-    ssize_t size = socket->recv(buffer->data(), buffer->capacity());
-    if (size > 0) {
-    	buffer->setRange(0, size);
-    	if (socket == mRtpSocket) {
-    		if (parseRtpHeader(buffer) == 0) {
-    			processRtpPayload(buffer);
-    		}
-    	}
-    }
-
-    return size > 0;
 }
 
 int RtpMediaSource::parseRtpHeader(const sp<Buffer>& buffer) {
@@ -134,7 +165,7 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 	if (mRtpPacketCounter++ == 0) {
 		mHighestSeqNumber = seqNum;
 		mQueue.push_back(buffer);
-		mAssembler->processMediaData();
+		mAssembler->processMediaQueue();
 		return;
 	}
 
@@ -175,5 +206,5 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 
 	mQueue.insert(itr, buffer);
 
-	mAssembler->processMediaData();
+	mAssembler->processMediaQueue();
 }

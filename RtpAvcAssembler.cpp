@@ -1,6 +1,6 @@
 #include "RtpAvcAssembler.h"
 #include "RtpMediaSource.h"
-#include "Buffer.h"
+#include "android/util/Buffer.h"
 #include "android/os/Message.h"
 #include "android/os/Clock.h"
 #include <string.h>
@@ -20,11 +20,11 @@ RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& n
 RtpAvcAssembler::~RtpAvcAssembler() {
 }
 
-void RtpAvcAssembler::processMediaData() {
+void RtpAvcAssembler::processMediaQueue() {
     Status status;
 
     while (true) {
-        status = assembleMediaData();
+        status = assembleNalUnits();
 
         if (status == OK) {
         	mFirstSeqNumberFailureTime = 0;
@@ -48,7 +48,7 @@ void RtpAvcAssembler::processMediaData() {
     }
 }
 
-RtpAvcAssembler::Status RtpAvcAssembler::assembleMediaData() {
+RtpAvcAssembler::Status RtpAvcAssembler::assembleNalUnits() {
 	if (mQueue.empty()) {
 		return OK;
 	}
@@ -119,7 +119,9 @@ void RtpAvcAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	memcpy(accessUnit->data() + offset, nalUnit->data(), nalUnit->size());
 
 	sp<Message> msg = mNotifyAccessUnit->dup();
-	msg->obj = new sp<Buffer>(accessUnit);
+	sp<Bundle> bundle = new Bundle();
+	bundle->putObject("Access-Unit", accessUnit);
+	msg->setData(bundle);
 	msg->sendToTarget();
 }
 
@@ -217,7 +219,9 @@ RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit() {
 	accessUnit->setRange(0, accessUnitSize);
 
 	sp<Message> msg = mNotifyAccessUnit->dup();
-	msg->obj = new sp<Buffer>(accessUnit);
+	sp<Bundle> bundle = new Bundle();
+	bundle->putObject("Access-Unit", accessUnit);
+	msg->setData(bundle);
 	msg->sendToTarget();
 
 	return OK;
