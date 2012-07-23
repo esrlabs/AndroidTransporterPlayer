@@ -29,6 +29,7 @@ public:
 	static const uint32_t STOP_MEDIA_SOURCE_DONE = 5;
 	static const uint32_t NOTIFY_FILL_INPUT_BUFFERS = 6;
 	static const uint32_t NOTIFY_INPUT_BUFFER_FILLED = 7;
+	static const uint32_t NOTIFY_EMPTY_OMX_BUFFER = 8;
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
@@ -50,6 +51,7 @@ private:
 	void onInputBufferFilled();
 	void onPlayVideoBuffer(const sp<android::util::Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
+	uint32_t getSamplesInOmx();
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
 	android::util::List< sp<android::util::Buffer> > mAudioAccessUnits;

@@ -65,8 +65,16 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		time = now;
 		delete (sp<Buffer>*) message->obj;
 		mAudioAccessUnits.push_back(accessUnit);
-		printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
-		obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
+		static bool running = false;
+		static int count = 0;
+		if (count++ % 10 == 0) {
+			printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
+		}
+
+		if (mAudioAccessUnits.size() > 20) {
+			running = true;
+			obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
+		}
 		break;
 	}
 	case NOTIFY_PLAY_AUDIO_BUFFER: {
@@ -100,6 +108,12 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		Looper::myLooper()->quit();
 //		finalizeOMXAudio();
 //		finalizeOMXVideo();
+		break;
+	}
+	case NOTIFY_EMPTY_OMX_BUFFER: {
+		OMX_BUFFERHEADERTYPE* omxMessage = static_cast<OMX_BUFFERHEADERTYPE*>(message->obj);
+		mEmptyOmxInputBuffers.push_back(omxMessage);
+		onFillInputBuffers();
 		break;
 	}
 	}
@@ -141,7 +155,32 @@ void RPiPlayer::onFillInputBuffers() {
 	}
 }
 
+uint32_t RPiPlayer::getSamplesInOmx()
+{
+   OMX_PARAM_U32TYPE param;
+   OMX_ERRORTYPE error;
+
+   memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
+   param.nSize = sizeof(OMX_PARAM_U32TYPE);
+   param.nVersion.nVersion = OMX_VERSION;
+   param.nPortIndex = 100;
+
+   error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
+   assert(error == OMX_ErrorNone);
+
+   return param.nU32;
+}
+
 void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
+//	printf("samples in omx: %d\n", getSamplesInOmx());
+
+	/*
+	if (getSamplesInOmx() > (44100 * 30) / 1000) {
+		removeMessages(NOTIFY_PLAY_AUDIO_BUFFER);
+		sendMessageDelayed(obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER), 10);
+		return;
+	}
+	*/
 	if (mFilledOmxInputBuffers.size() > 0) {
 		List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers.begin();
 		while (itr != mFilledOmxInputBuffers.end()) {
@@ -156,12 +195,7 @@ void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
 }
 
 void RPiPlayer::onInputBufferFilled() {
-	static int startup = 0;
-	if (startup < 2) {
-		++startup;
-	} else {
-		obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
-	}
+	obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
 }
 
 void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
@@ -229,9 +263,10 @@ void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 	if (component == self->mAudioRenderer) {
 		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(self->mAudioRenderer, 100, 1);
 		assert(omxBuffer);
-		self->mEmptyOmxInputBuffers.push_back(omxBuffer);
-		self->obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
-	} else if(component == self->mVideoDecoder) {
+		sp<Message> m = self->obtainMessage(NOTIFY_EMPTY_OMX_BUFFER);
+		m->obj = omxBuffer;
+		m->sendToTarget();
+	} else if (component == self->mVideoDecoder) {
 		self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 	} else {
 		assert(false);
