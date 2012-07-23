@@ -1,13 +1,13 @@
-#ifndef RTPASSEMBLER_H_
-#define RTPASSEMBLER_H_
+#ifndef MEDIAASSEMBLER_H_
+#define MEDIAASSEMBLER_H_
 
 #include "android/os/Ref.h"
 
-class RtpAssembler :
+class MediaAssembler :
 	public android::os::Ref
 {
 public:
 	virtual void processMediaQueue() = 0;
 };
 
-#endif /* RTPASSEMBLER_H_ */
+#endif /* MEDIAASSEMBLER_H_ */

@@ -6,7 +6,7 @@
 #include "android/util/List.h"
 #include "MediaSourceType.h"
 
-class RtpAssembler;
+class MediaAssembler;
 namespace android {
 namespace os {
 class Message;
@@ -28,7 +28,7 @@ public:
 	RtpMediaSource(uint16_t port);
 	virtual ~RtpMediaSource();
 
-	bool start(sp<RtpAssembler> assembler);
+	bool start(sp<MediaAssembler> mediaAssembler);
 	void stop();
 
 	virtual void handleMessage(const sp<android::os::Message>& message);
@@ -65,7 +65,7 @@ private:
 
 	sp<NetReceiver> mNetReceiver;
 	android::util::List< sp<android::util::Buffer> > mQueue;
-	sp<RtpAssembler> mAssembler;
+	sp<MediaAssembler> mMediaAssembler;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;
 	MediaSourceType mType;

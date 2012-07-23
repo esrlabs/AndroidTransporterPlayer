@@ -1,7 +1,7 @@
-#ifndef RTPAVCASSEMBLER_H_
-#define RTPAVCASSEMBLER_H_
+#ifndef AVCMEDIAASSEMBLER_H_
+#define AVCMEDIAASSEMBLER_H_
 
-#include "RtpAssembler.h"
+#include "MediaAssembler.h"
 #include "android/util/List.h"
 
 namespace android {
@@ -15,8 +15,8 @@ class Buffer;
 
 using android::os::sp;
 
-class RtpAvcAssembler :
-	public RtpAssembler
+class AvcMediaAssembler :
+	public MediaAssembler
 {
 public:
 	enum Status {
@@ -25,8 +25,8 @@ public:
 		SEQ_NUMBER_FAILURE,
 	};
 
-	RtpAvcAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
-	virtual ~RtpAvcAssembler();
+	AvcMediaAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
+	virtual ~AvcMediaAssembler();
 
 	virtual void processMediaQueue();
 
@@ -47,4 +47,4 @@ private:
 	uint64_t mFirstSeqNumberFailureTime;
 };
 
-#endif /* RTPAVCASSEMBLER_H_ */
+#endif /* AVCMEDIAASSEMBLER_H_ */

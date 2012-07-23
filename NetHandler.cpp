@@ -1,7 +1,7 @@
 #include "NetHandler.h"
 #include "RPiPlayer.h"
 #include "android/os/Bundle.h"
-#include "RtpAvcAssembler.h"
+#include "AvcMediaAssembler.h"
 #include <stdio.h>
 
 using namespace android::os;
@@ -32,7 +32,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 			//TODO: the DESCRIBE_SERVICE_DONE message has to contain the SDP service desc within a bundle.
 //			mRtpAudioSource = new RtpMediaSource();
 			mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
-			mRtpVideoSource->start(new RtpAvcAssembler(mRtpVideoSource->getMediaQueue(),
+			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
 			mRtspMediaSource->setupVideoTrack(RTP_VIDEO_SOURCE_PORT, obtainMessage(SETUP_VIDEO_TRACK_DONE));
 		}

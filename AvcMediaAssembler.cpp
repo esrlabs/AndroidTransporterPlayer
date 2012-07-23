@@ -1,4 +1,4 @@
-#include "RtpAvcAssembler.h"
+#include "AvcMediaAssembler.h"
 #include "RtpMediaSource.h"
 #include "android/util/Buffer.h"
 #include "android/os/Message.h"
@@ -9,7 +9,7 @@
 using namespace android::os;
 using namespace android::util;
 
-RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& notifyAccessUnit) :
+AvcMediaAssembler::AvcMediaAssembler(List< sp<Buffer> >& queue, const sp<Message>& notifyAccessUnit) :
 		mQueue(queue),
 		mNotifyAccessUnit(notifyAccessUnit),
 		mSeqNumber(0),
@@ -17,10 +17,10 @@ RtpAvcAssembler::RtpAvcAssembler(List< sp<Buffer> >& queue, const sp<Message>& n
 		mFirstSeqNumberFailureTime(0) {
 }
 
-RtpAvcAssembler::~RtpAvcAssembler() {
+AvcMediaAssembler::~AvcMediaAssembler() {
 }
 
-void RtpAvcAssembler::processMediaQueue() {
+void AvcMediaAssembler::processMediaQueue() {
     Status status;
 
     while (true) {
@@ -48,7 +48,7 @@ void RtpAvcAssembler::processMediaQueue() {
     }
 }
 
-RtpAvcAssembler::Status RtpAvcAssembler::assembleNalUnits() {
+AvcMediaAssembler::Status AvcMediaAssembler::assembleNalUnits() {
 	if (mQueue.empty()) {
 		return OK;
 	}
@@ -111,7 +111,7 @@ RtpAvcAssembler::Status RtpAvcAssembler::assembleNalUnits() {
 	return OK;
 }
 
-void RtpAvcAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
+void AvcMediaAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	sp<Buffer> accessUnit = new Buffer(nalUnit->size() + 4);
 	size_t offset = 0;
 	memcpy(accessUnit->data(), "\x00\x00\x00\x01", 4);
@@ -125,7 +125,7 @@ void RtpAvcAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	msg->sendToTarget();
 }
 
-RtpAvcAssembler::Status RtpAvcAssembler::processFragNalUnit() {
+AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	sp<Buffer> buffer = *mQueue.begin();
 	const uint8_t *data = buffer->data();
 	size_t size = buffer->size();

@@ -2,7 +2,7 @@
 #include "android/os/Handler.h"
 #include "android/util/Buffer.h"
 #include "android/net/DatagramSocket.h"
-#include "RtpAssembler.h"
+#include "MediaAssembler.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -21,8 +21,8 @@ RtpMediaSource::RtpMediaSource(uint16_t port) :
 RtpMediaSource::~RtpMediaSource() {
 }
 
-bool RtpMediaSource::start(sp<RtpAssembler> assembler) {
-	mAssembler = assembler;
+bool RtpMediaSource::start(sp<MediaAssembler> mediaAssembler) {
+	mMediaAssembler = mediaAssembler;
 	return mNetReceiver->start();
 }
 
@@ -165,7 +165,7 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 	if (mRtpPacketCounter++ == 0) {
 		mHighestSeqNumber = seqNum;
 		mQueue.push_back(buffer);
-		mAssembler->processMediaQueue();
+		mMediaAssembler->processMediaQueue();
 		return;
 	}
 
@@ -206,5 +206,5 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 
 	mQueue.insert(itr, buffer);
 
-	mAssembler->processMediaQueue();
+	mMediaAssembler->processMediaQueue();
 }
