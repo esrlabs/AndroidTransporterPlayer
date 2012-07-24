@@ -24,7 +24,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case START_VIDEO_TRACK: {
-		if (message->arg1 == 96) {
+		if (message->arg1 == AVC_VIDEO_TYPE) {
 			mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
 			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));

@@ -24,6 +24,7 @@ public:
 
 private:
 	static const uint16_t RTP_VIDEO_SOURCE_PORT = 56098;
+	static const uint8_t AVC_VIDEO_TYPE = 96;
 
 	sp<RPiPlayer> mPlayer;
 	sp<RtspMediaSource> mRtspMediaSource;
