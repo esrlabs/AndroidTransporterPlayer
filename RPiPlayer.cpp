@@ -79,7 +79,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 			printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
 		}
 
-		if (mAudioAccessUnits.size() > 20) {
+		if (mAudioAccessUnits.size() > 8) {
 			running = true;
 			obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
 		}
@@ -225,6 +225,36 @@ void RPiPlayer::printLatencyConfig() {
 	printf("adjcap: %d\n", param.nAdjCap);
 }
 
+void RPiPlayer::adjustTiming() {
+
+	 OMX_AUDIO_PARAM_PCMMODETYPE pcmParams;
+	 memset(&pcmParams, 0, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
+	 pcmParams.nSize = sizeof(OMX_AUDIO_PARAM_PCMMODETYPE);
+	 pcmParams.nVersion.nVersion = OMX_VERSION;
+	 pcmParams.nPortIndex = 100;
+
+	 pcmParams.nChannels = 2;
+	 pcmParams.eNumData = OMX_NumericalDataSigned;
+	 pcmParams.eEndian = OMX_EndianLittle;
+	 int timings[2] = {43932, 43940};
+	 int idx = 0;
+	 pcmParams.nSamplingRate = timings[idx++ % 2];
+	 pcmParams.bInterleaved = OMX_TRUE;
+	 pcmParams.nBitPerSample = 16;
+	 pcmParams.ePCMMode = OMX_AUDIO_PCMModeLinear;
+     pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
+	 pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
+
+	 ilclient_change_component_state(mAudioRenderer, OMX_StateIdle);
+
+
+	 OMX_ERRORTYPE result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamAudioPcm, &pcmParams);
+	 printf("%x\n", result);
+	 ilclient_change_component_state(mAudioRenderer, OMX_StateExecuting);
+
+	 //assert(result == OMX_ErrorNone);
+}
+
 void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
 //	printf("samples in omx: %d\n", getSamplesInOmx());
 
@@ -235,6 +265,7 @@ void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
 		return;
 	}
 	*/
+	// adjustTiming();
 	if (mFilledOmxInputBuffers.size() > 0) {
 		List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers.begin();
 		while (itr != mFilledOmxInputBuffers.end()) {
@@ -328,10 +359,10 @@ void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 }
 
 int RPiPlayer::initOMXAudio() {
-	const uint32_t sampleRate = 44100;
+	const uint32_t sampleRate = 43940; //44100;
 	const uint32_t numChannels = 2;
 	const uint32_t bitsPerSample = 16;
-	const uint32_t numBuffers = 10;
+	const uint32_t numOmxBuffers = 1;
 	const uint32_t bufferSize = (NUM_AUDIO_FRAMES * numChannels * bitsPerSample) >> 3;
 
 	memset(mAudioComponentList, 0, sizeof(mAudioComponentList));
@@ -356,7 +387,7 @@ int RPiPlayer::initOMXAudio() {
 
     // Buffers must be 16 byte aligned for VCHI
     portDefinitions.nBufferSize = (bufferSize + 15) & ~15;
-    portDefinitions.nBufferCountActual = numBuffers;
+    portDefinitions.nBufferCountActual = numOmxBuffers;
 
     result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
     assert(result == OMX_ErrorNone);
@@ -418,7 +449,10 @@ int RPiPlayer::initOMXAudio() {
 	while ((omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, 0)) != NULL) {
 		mEmptyOmxInputBuffers.push_back(omxBuffer);
 	}
-	assert(mEmptyOmxInputBuffers.size() == 10);
+	assert(mEmptyOmxInputBuffers.size() == numOmxBuffers);
+
+	printLatencyConfig();
+
 	return 0;
 }
 

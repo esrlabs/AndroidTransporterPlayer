@@ -53,6 +53,8 @@ private:
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 	uint32_t getSamplesInOmx();
 	void printLatencyConfig();
+	void adjustTiming();
+
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
 	android::util::List< sp<android::util::Buffer> > mAudioAccessUnits;

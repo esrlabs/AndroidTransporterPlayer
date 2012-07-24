@@ -63,9 +63,7 @@ void RtpPcmAssembler::processMediaData() {
 				mAccessUnitOffset += 2;
 				if(mAccessUnitOffset >= UNIT_SIZE) {
 					sp<Message> msg = mNotifyAccessUnit->dup();
-					//mAccessUnit->setRange(0, size);
 					msg->obj = new sp<Buffer>(mAccessUnit);
-					//printf("%lu\n", mAccessUnit->size());
 					assert(msg->sendToTarget());
 					mAccessUnitOffset = 0;
 					mAccessUnit = new Buffer(UNIT_SIZE);
