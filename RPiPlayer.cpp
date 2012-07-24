@@ -22,6 +22,7 @@ static const uint32_t 	NUMBER_CHANNELS = 2;
 static const uint32_t 	NUMBER_BITS_PER_SAMPLE = 16;
 static const uint32_t 	NUMBER_OMX_BUFFERS = 1;
 static const uint32_t 	NUMBER_ACCESS_UNITS = 8;
+static const uint32_t   NUM_AUDIO_FRAMES = 2205;
 
 RPiPlayer::RPiPlayer() :
 		mAudioClient(NULL),
@@ -54,7 +55,7 @@ bool RPiPlayer::start(android::lang::String url) {
 	assert(setAudioSink("local"));
 	assert(initOMXVideo() == 0);
 
-	setupMediaSource(url);
+	assert(startMediaSource(url));
 	return true;
 }
 
