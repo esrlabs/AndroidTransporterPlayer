@@ -25,8 +25,8 @@ RPiPlayer::~RPiPlayer() {
 }
 
 void RPiPlayer::start(android::lang::String url) {
-	startMediaSource(url);
 	assert(initOMX() == 0);
+	startMediaSource(url);
 }
 
 void RPiPlayer::stop() {
