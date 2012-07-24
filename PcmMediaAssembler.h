@@ -1,5 +1,5 @@
-#ifndef RTPPCMASSEMBLER_H_
-#define RTPPCMASSEMBLER_H_
+#ifndef PCMMEDIAASSEMBLER_H_
+#define PCMMEDIAASSEMBLER_H_
 
 #include "MediaAssembler.h"
 #include "android/util/List.h"
@@ -15,14 +15,14 @@ class Buffer;
 
 using android::os::sp;
 
-class RtpPcmAssembler :
+class PcmMediaAssembler :
 	public MediaAssembler
 {
 public:
-	RtpPcmAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
-	virtual ~RtpPcmAssembler();
+	PcmMediaAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
+	virtual ~PcmMediaAssembler();
 
-	virtual void processMediaData();
+	virtual void processMediaQueue();
 
 private:
 	android::util::List< sp<android::util::Buffer> >& mQueue;
@@ -34,4 +34,4 @@ private:
 	size_t mLastRtpPacketSize;
 };
 
-#endif /* RTPPCMASSEMBLER_H_ */
+#endif /* PCMMEDIAASSEMBLER_H_ */

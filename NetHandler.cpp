@@ -1,6 +1,7 @@
 #include "NetHandler.h"
 #include "RPiPlayer.h"
 #include "android/os/Bundle.h"
+#include "PcmMediaAssembler.h"
 #include "AvcMediaAssembler.h"
 #include <stdio.h>
 
@@ -21,6 +22,21 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		if (!mRtspMediaSource->start(bundle->getString("Url"))) {
 			mPlayer->stop();
 		}
+		break;
+	}
+	case START_AUDIO_TRACK: {
+		if (message->arg1 == PCM_AUDIO_TYPE) {
+			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
+			mRtpAudioSource->start(new PcmMediaAssembler(mRtpAudioSource->getMediaQueue(),
+					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER)));
+			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
+			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
+			msg->sendToTarget();
+		}
+		break;
+	}
+	case STOP_AUDIO_TRACK: {
+		obtainMessage(STOP_MEDIA_SOURCE)->sendToTarget();
 		break;
 	}
 	case START_VIDEO_TRACK: {

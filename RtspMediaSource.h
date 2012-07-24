@@ -24,9 +24,12 @@ class RtspMediaSource :
 	public android::os::Handler {
 public:
 	static const uint32_t START_VIDEO_TRACK = 0;
-	static const uint32_t DESCRIBE_MEDIA_SOURCE = 1;
-	static const uint32_t SETUP_VIDEO_TRACK = 2;
-	static const uint32_t PLAY_VIDEO_TRACK = 3;
+	static const uint32_t START_AUDIO_TRACK = 1;
+	static const uint32_t DESCRIBE_MEDIA_SOURCE = 2;
+	static const uint32_t SETUP_AUDIO_TRACK = 3;
+	static const uint32_t PLAY_AUDIO_TRACK = 4;
+	static const uint32_t SETUP_VIDEO_TRACK = 5;
+	static const uint32_t PLAY_VIDEO_TRACK = 6;
 
 	RtspMediaSource(const sp<android::os::Handler>& netHandler);
 	virtual ~RtspMediaSource();

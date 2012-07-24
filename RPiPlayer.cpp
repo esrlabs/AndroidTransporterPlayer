@@ -66,7 +66,7 @@ void RPiPlayer::stop() {
 }
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
-	//printf("what: %d\n", message->what);
+//	printf("what: %d\n", message->what);
 	switch (message->what) {
 	case NOTIFY_QUEUE_AUDIO_BUFFER: {
 		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);

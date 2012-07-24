@@ -25,6 +25,7 @@ SRCS = RtspSocket.cpp \
 	RtspMediaSource.cpp \
 	RtpMediaSource.cpp \
 	AvcMediaAssembler.cpp \
+	PcmMediaAssembler.cpp \
 	NetHandler.cpp \
 	AndroidTransporterPlayer.cpp \
 

@@ -1,4 +1,4 @@
-#include "RtpPcmAssembler.h"
+#include "PcmMediaAssembler.h"
 #include "android/util/Buffer.h"
 #include "android/os/Message.h"
 #include <string.h>
@@ -14,7 +14,7 @@ static const size_t RTP_PACKET_SMALL_SIZE = 492;
 static const size_t RTP_PACKET_LARGE_SIZE = 1388;
 
 
-RtpPcmAssembler::RtpPcmAssembler(android::util::List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit) :
+PcmMediaAssembler::PcmMediaAssembler(android::util::List< sp<Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit) :
 		mQueue(queue),
 		mNotifyAccessUnit(notifyAccessUnit),
 		mAccessUnit(NULL),
@@ -23,11 +23,10 @@ RtpPcmAssembler::RtpPcmAssembler(android::util::List< sp<Buffer> >& queue, const
 		mLastRtpPacketSize(0) {
 }
 
-RtpPcmAssembler::~RtpPcmAssembler() {
+PcmMediaAssembler::~PcmMediaAssembler() {
 }
 
-void RtpPcmAssembler::processMediaData() {
-
+void PcmMediaAssembler::processMediaQueue() {
 	if (!mQueue.empty()) {
 		sp<Buffer> buffer = *mQueue.begin();
 		mQueue.erase(mQueue.begin());
