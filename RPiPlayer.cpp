@@ -31,7 +31,6 @@ void RPiPlayer::start(android::lang::String url) {
 
 void RPiPlayer::stop() {
 	stopMediaSource();
-	finalizeOMX();
 }
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
@@ -55,6 +54,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		mNetLooper->join();
 		mNetLooper = NULL;
 		Looper::myLooper()->quit();
+//		finalizeOMX();
 		break;
 	}
 	}

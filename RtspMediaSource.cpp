@@ -59,8 +59,10 @@ bool RtspMediaSource::start(const android::lang::String& url) {
 }
 
 void RtspMediaSource::stop() {
+	if (mNetReceiver != NULL) {
+		mNetReceiver->stop();
+	}
 	mNetHandler = NULL;
-	mNetReceiver->stop();
 }
 
 void RtspMediaSource::handleMessage(const sp<android::os::Message>& message) {
@@ -156,7 +158,6 @@ void RtspMediaSource::setupVideoTrack(uint16_t port) {
 	mMessageMappings[mCSeq] = "SETUP";
 	String setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
 			mVideoMediaSourceUrl.c_str(), mCSeq++, port, port + 1);
-	printf("SETUP: %s\n", setupMessage.c_str());
 	mSocket->write(setupMessage.c_str(), setupMessage.size());
 }
 
@@ -164,7 +165,6 @@ void RtspMediaSource::playVideoTrack() {
 	mMessageMappings[mCSeq] = "PLAY";
 	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
 			mVideoMediaSourceUrl.c_str(), mCSeq++, mSessionId.c_str());
-	printf("PLAY: %s\n", playMessage.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
 }
 
