@@ -10,6 +10,14 @@ using namespace android::os;
 using namespace android::util;
 using namespace android::lang;
 
+#define OMX_INIT_STRUCTURE(a) \
+  memset(&(a), 0, sizeof(a)); \
+  (a).nSize = sizeof(a); \
+  (a).nVersion.s.nVersionMajor = OMX_VERSION_MAJOR; \
+  (a).nVersion.s.nVersionMinor = OMX_VERSION_MINOR; \
+  (a).nVersion.s.nRevision = OMX_VERSION_REVISION; \
+  (a).nVersion.s.nStep = OMX_VERSION_STEP
+
 RPiPlayer::RPiPlayer() :
 		mAudioClient(NULL),
 		mAudioRenderer(NULL),
@@ -169,6 +177,52 @@ uint32_t RPiPlayer::getSamplesInOmx()
    assert(error == OMX_ErrorNone);
 
    return param.nU32;
+}
+
+
+void RPiPlayer::printLatencyConfig() {
+	/*
+   OMX_U32 nSize;
+   OMX_VERSIONTYPE nVersion;
+   OMX_U32 nPortIndex;
+   OMX_BOOL bEnabled;
+   OMX_U32 nFilter;
+   OMX_U32 nTarget;
+   OMX_U32 nShift;
+   OMX_S32 nSpeedFactor;
+   OMX_S32 nInterFactor;
+   OMX_S32 nAdjCap;
+	 */
+
+	OMX_CONFIG_LATENCYTARGETTYPE param;
+	OMX_ERRORTYPE error;
+//	OMX_INIT_STRUCTURE(param);
+//    param.nPortIndex = 100;
+//	param.bEnabled = OMX_TRUE;
+//    param.nFilter = 2;
+//    param.nTarget = 4000;
+//    param.nShift = 3;
+//    param.nSpeedFactor = -135;
+//    param.nInterFactor = 500;
+//    param.nAdjCap = 20;
+//    error = OMX_SetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigLatencyTarget, &param);
+//	printf("error %x\n", error);
+
+	OMX_INIT_STRUCTURE(param);
+	param.nPortIndex = 100;
+
+	error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigLatencyTarget, &param);
+	printf("error: %x\n", error);
+	printf("size: %d\n", param.nSize);
+	printf("version: %d\n", param.nVersion);
+	printf("portIndex: %d\n", param.nPortIndex);
+	printf("enabled: %d\n", param.bEnabled);
+	printf("filter: %d\n", param.nFilter);
+	printf("target: %d\n", param.nTarget);
+	printf("shift: %d\n", param.nShift);
+	printf("speedf: %d\n", param.nSpeedFactor);
+	printf("nInterFactor: %d\n", param.nInterFactor);
+	printf("adjcap: %d\n", param.nAdjCap);
 }
 
 void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {

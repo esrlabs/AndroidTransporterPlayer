@@ -52,6 +52,7 @@ private:
 	void onPlayVideoBuffer(const sp<android::util::Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 	uint32_t getSamplesInOmx();
+	void printLatencyConfig();
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
 	android::util::List< sp<android::util::Buffer> > mAudioAccessUnits;
