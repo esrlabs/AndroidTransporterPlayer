@@ -14,43 +14,31 @@ NetHandler::~NetHandler() {
 
 void NetHandler::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
-	case SETUP_MEDIA_SOURCE: {
+	case START_MEDIA_SOURCE: {
 		sp<Bundle> bundle = message->getData();
-		mPlayer = bundle->getObject<Handler>("Player");
-		mRtspMediaSource = new RtspMediaSource();
-		mRtspMediaSource->start(bundle->getString("Url"), obtainMessage(SETUP_MEDIA_SOURCE_DONE));
-		break;
-	}
-	case SETUP_MEDIA_SOURCE_DONE: {
-		if (message->arg1 == 0) {
-			mRtspMediaSource->describeService(obtainMessage(DESCRIBE_SERVICE_DONE));
+		mPlayer = bundle->getObject<RPiPlayer>("Player");
+		mRtspMediaSource = new RtspMediaSource(this);
+		if (!mRtspMediaSource->start(bundle->getString("Url"))) {
+			mPlayer->stop();
 		}
 		break;
 	}
-	case DESCRIBE_SERVICE_DONE: {
-		if (message->arg1 == 0) {
-			//TODO: the DESCRIBE_SERVICE_DONE message has to contain the SDP service desc within a bundle.
-//			mRtpAudioSource = new RtpMediaSource();
+	case START_VIDEO_TRACK: {
+		if (message->arg1 == 96) {
 			mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
 			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
-			mRtspMediaSource->setupVideoTrack(RTP_VIDEO_SOURCE_PORT, obtainMessage(SETUP_VIDEO_TRACK_DONE));
+			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_VIDEO_TRACK);
+			msg->arg1 = RTP_VIDEO_SOURCE_PORT;
+			msg->sendToTarget();
 		}
-		break;
-	}
-	case SETUP_VIDEO_TRACK_DONE: {
-		if (message->arg1 == 0) {
-			mRtspMediaSource->playVideoTrack(obtainMessage(PLAY_VIDEO_TRACK_DONE));
-		}
-		break;
-	}
-	case PLAY_VIDEO_TRACK_DONE: {
 		break;
 	}
 	case STOP_MEDIA_SOURCE: {
 		mRtspMediaSource->stop();
-//		mRtpAudioSource->stop();
-		mRtpVideoSource->stop();
+		if (mRtpVideoSource != NULL) {
+			mRtpVideoSource->stop();
+		}
 		sp<Bundle> bundle = message->getData();
 		sp<Message> reply = bundle->getObject<Message>("Reply");
 		reply->sendToTarget();

@@ -25,11 +25,12 @@ RPiPlayer::~RPiPlayer() {
 }
 
 void RPiPlayer::start(android::lang::String url) {
-	setupMediaSource(url);
+	startMediaSource(url);
 	assert(initOMX() == 0);
 }
 
 void RPiPlayer::stop() {
+	stopMediaSource();
 	finalizeOMX();
 }
 
@@ -59,8 +60,8 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 	}
 }
 
-bool RPiPlayer::setupMediaSource(const android::lang::String& url) {
-	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::SETUP_MEDIA_SOURCE);
+bool RPiPlayer::startMediaSource(const android::lang::String& url) {
+	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::START_MEDIA_SOURCE);
 	sp<Bundle> bundle = new Bundle();
 	bundle->putObject("Player", this);
 	bundle->putString("Url", url);

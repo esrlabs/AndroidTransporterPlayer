@@ -36,7 +36,7 @@ public:
 	virtual void handleMessage(const sp<android::os::Message>& message);
 
 private:
-	bool setupMediaSource(const android::lang::String& url);
+	bool startMediaSource(const android::lang::String& url);
 	void stopMediaSource();
 	int initOMX();
 	void finalizeOMX();
