@@ -4,7 +4,6 @@
 #include "android/util/Buffer.h"
 #include <stdio.h>
 #include <unistd.h>
-#include "android/os/Clock.h"
 
 using namespace android::os;
 using namespace android::util;
@@ -17,6 +16,12 @@ using namespace android::lang;
   (a).nVersion.s.nVersionMinor = OMX_VERSION_MINOR; \
   (a).nVersion.s.nRevision = OMX_VERSION_REVISION; \
   (a).nVersion.s.nStep = OMX_VERSION_STEP
+
+static const uint32_t 	SAMPLE_RATE = 43940; //44100;
+static const uint32_t 	NUMBER_CHANNELS = 2;
+static const uint32_t 	NUMBER_BITS_PER_SAMPLE = 16;
+static const uint32_t 	NUMBER_OMX_BUFFERS = 1;
+static const uint32_t 	NUMBER_ACCESS_UNITS = 8;
 
 RPiPlayer::RPiPlayer() :
 		mAudioClient(NULL),
@@ -60,27 +65,17 @@ void RPiPlayer::stop() {
 }
 
 void RPiPlayer::handleMessage(const sp<Message>& message) {
-	static uint64_t time = 0;
 	//printf("what: %d\n", message->what);
 	switch (message->what) {
 	case NOTIFY_QUEUE_AUDIO_BUFFER: {
-		uint64_t now = Clock::monotonicTime();
-
 		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
-		if(time != 0) {
-			//printf("clock: %lld -> %lu bytes\n", (now-time), accessUnit->size());
-		}
-		time = now;
 		delete (sp<Buffer>*) message->obj;
 		mAudioAccessUnits.push_back(accessUnit);
-		static bool running = false;
-		static int count = 0;
-		if (count++ % 10 == 0) {
-			printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
-		}
-
-		if (mAudioAccessUnits.size() > 8) {
-			running = true;
+		//static int count = 0;
+		//if (count++ % 10 == 0) {
+		//	printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
+		//}
+		if (mAudioAccessUnits.size() > NUMBER_ACCESS_UNITS) {
 			obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
 		}
 		break;
@@ -89,9 +84,10 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		onPlayAudioBuffer(*mAudioAccessUnits.begin());
 		break;
 	}
-	case NOTIFY_FILL_INPUT_BUFFERS:
+	case NOTIFY_FILL_INPUT_BUFFERS: {
 		onFillInputBuffers();
 		break;
+	}
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
 		sp<Bundle> bundle = message->getData();
 		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
@@ -106,9 +102,10 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		}
 		break;
 	}
-	case NOTIFY_INPUT_BUFFER_FILLED:
+	case NOTIFY_INPUT_BUFFER_FILLED: {
 		onInputBufferFilled();
 		break;
+	}
 	case STOP_MEDIA_SOURCE_DONE: {
 		mNetLooper->getLooper()->quit();
 		mNetLooper->join();
@@ -163,116 +160,16 @@ void RPiPlayer::onFillInputBuffers() {
 	}
 }
 
-uint32_t RPiPlayer::getSamplesInOmx()
-{
-   OMX_PARAM_U32TYPE param;
-   OMX_ERRORTYPE error;
-
-   memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
-   param.nSize = sizeof(OMX_PARAM_U32TYPE);
-   param.nVersion.nVersion = OMX_VERSION;
-   param.nPortIndex = 100;
-
-   error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
-   assert(error == OMX_ErrorNone);
-
-   return param.nU32;
-}
-
-
-void RPiPlayer::printLatencyConfig() {
-	/*
-   OMX_U32 nSize;
-   OMX_VERSIONTYPE nVersion;
-   OMX_U32 nPortIndex;
-   OMX_BOOL bEnabled;
-   OMX_U32 nFilter;
-   OMX_U32 nTarget;
-   OMX_U32 nShift;
-   OMX_S32 nSpeedFactor;
-   OMX_S32 nInterFactor;
-   OMX_S32 nAdjCap;
-	 */
-
-	OMX_CONFIG_LATENCYTARGETTYPE param;
-	OMX_ERRORTYPE error;
-//	OMX_INIT_STRUCTURE(param);
-//    param.nPortIndex = 100;
-//	param.bEnabled = OMX_TRUE;
-//    param.nFilter = 2;
-//    param.nTarget = 4000;
-//    param.nShift = 3;
-//    param.nSpeedFactor = -135;
-//    param.nInterFactor = 500;
-//    param.nAdjCap = 20;
-//    error = OMX_SetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigLatencyTarget, &param);
-//	printf("error %x\n", error);
-
-	OMX_INIT_STRUCTURE(param);
-	param.nPortIndex = 100;
-
-	error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigLatencyTarget, &param);
-	printf("error: %x\n", error);
-	printf("size: %d\n", param.nSize);
-	printf("version: %d\n", param.nVersion);
-	printf("portIndex: %d\n", param.nPortIndex);
-	printf("enabled: %d\n", param.bEnabled);
-	printf("filter: %d\n", param.nFilter);
-	printf("target: %d\n", param.nTarget);
-	printf("shift: %d\n", param.nShift);
-	printf("speedf: %d\n", param.nSpeedFactor);
-	printf("nInterFactor: %d\n", param.nInterFactor);
-	printf("adjcap: %d\n", param.nAdjCap);
-}
-
-void RPiPlayer::adjustTiming() {
-
-	 OMX_AUDIO_PARAM_PCMMODETYPE pcmParams;
-	 memset(&pcmParams, 0, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
-	 pcmParams.nSize = sizeof(OMX_AUDIO_PARAM_PCMMODETYPE);
-	 pcmParams.nVersion.nVersion = OMX_VERSION;
-	 pcmParams.nPortIndex = 100;
-
-	 pcmParams.nChannels = 2;
-	 pcmParams.eNumData = OMX_NumericalDataSigned;
-	 pcmParams.eEndian = OMX_EndianLittle;
-	 int timings[2] = {43932, 43940};
-	 int idx = 0;
-	 pcmParams.nSamplingRate = timings[idx++ % 2];
-	 pcmParams.bInterleaved = OMX_TRUE;
-	 pcmParams.nBitPerSample = 16;
-	 pcmParams.ePCMMode = OMX_AUDIO_PCMModeLinear;
-     pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
-	 pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
-
-	 ilclient_change_component_state(mAudioRenderer, OMX_StateIdle);
-
-
-	 OMX_ERRORTYPE result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamAudioPcm, &pcmParams);
-	 printf("%x\n", result);
-	 ilclient_change_component_state(mAudioRenderer, OMX_StateExecuting);
-
-	 //assert(result == OMX_ErrorNone);
-}
-
 void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
-//	printf("samples in omx: %d\n", getSamplesInOmx());
-
-	/*
-	if (getSamplesInOmx() > (44100 * 30) / 1000) {
-		removeMessages(NOTIFY_PLAY_AUDIO_BUFFER);
-		sendMessageDelayed(obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER), 10);
-		return;
-	}
-	*/
-	// adjustTiming();
 	if (mFilledOmxInputBuffers.size() > 0) {
+		OMX_ERRORTYPE result;
 		List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers.begin();
 		while (itr != mFilledOmxInputBuffers.end()) {
 			OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
 			itr = mFilledOmxInputBuffers.erase(itr);
-			if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer) != OMX_ErrorNone) {
-				printf("weia !!!\n");
+		    result = OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer);
+			if (result != OMX_ErrorNone) {
+				printf("OMX_EmptyThisBuffer failed: %d\n", result);
 				return;
 			}
 		}
@@ -359,10 +256,10 @@ void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 }
 
 int RPiPlayer::initOMXAudio() {
-	const uint32_t sampleRate = 43940; //44100;
-	const uint32_t numChannels = 2;
-	const uint32_t bitsPerSample = 16;
-	const uint32_t numOmxBuffers = 1;
+	const uint32_t sampleRate = SAMPLE_RATE;
+	const uint32_t numChannels = NUMBER_CHANNELS;
+	const uint32_t bitsPerSample = NUMBER_BITS_PER_SAMPLE;
+	const uint32_t numOmxBuffers = NUMBER_OMX_BUFFERS;
 	const uint32_t bufferSize = (NUM_AUDIO_FRAMES * numChannels * bitsPerSample) >> 3;
 
 	memset(mAudioComponentList, 0, sizeof(mAudioComponentList));
@@ -450,9 +347,6 @@ int RPiPlayer::initOMXAudio() {
 		mEmptyOmxInputBuffers.push_back(omxBuffer);
 	}
 	assert(mEmptyOmxInputBuffers.size() == numOmxBuffers);
-
-	printLatencyConfig();
-
 	return 0;
 }
 

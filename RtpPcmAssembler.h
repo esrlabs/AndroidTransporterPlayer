@@ -27,6 +27,9 @@ private:
 	sp<android::os::Message> mNotifyAccessUnit;
 	sp<Buffer> mAccessUnit;
 	int mAccessUnitOffset;
+
+	bool mStartStream;
+	size_t mLastRtpPacketSize;
 };
 
 #endif /* RTPPCMASSEMBLER_H_ */
