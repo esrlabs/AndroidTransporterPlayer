@@ -34,6 +34,10 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		}
 		break;
 	}
+	case STOP_VIDEO_TRACK: {
+		obtainMessage(STOP_MEDIA_SOURCE)->sendToTarget();
+		break;
+	}
 	case STOP_MEDIA_SOURCE: {
 		mRtspMediaSource->stop();
 		if (mRtpVideoSource != NULL) {

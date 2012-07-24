@@ -1,7 +1,10 @@
 #include "RtspSocket.h"
 #include <sys/socket.h>
+#include "android/util/List.h"
 
 using namespace std;
+using namespace android::os;
+using namespace android::util;
 using namespace android::lang;
 
 RtspSocket::RtspSocket() :
@@ -45,17 +48,25 @@ RtspHeader* RtspSocket::readPacketHeader() {
 		line = readLine();
 		if (line.size() > 0) {
 			if (rtspHeader->empty()) {
-				if (line != "RTSP/1.0 200 OK") {
+				sp< List<String> > resultCode = line.split(" ");
+				if (resultCode->size() < 2) {
 					delete rtspHeader;
 					return NULL;
 				} else {
-					(*rtspHeader)[String("ResultCode")] = String("200");
+					List<String>::iterator itr = resultCode->begin();
+					if (itr->trim() != "RTSP/1.0") {
+						delete rtspHeader;
+						return NULL;
+					} else {
+						++itr;
+						(*rtspHeader)[String("ResultCode")] = itr->trim();
+					}
 				}
 			} else {
 				ssize_t pos = line.indexOf(":");
 				String key, value;
 				if (pos >= 0) {
-					key = line.substr(0, pos).trim();
+					key = line.substr(0, pos).trim().toLowerCase();
 					value = line.substr(pos + 1).trim();
 				}
 				if (!value.isNull()) {
