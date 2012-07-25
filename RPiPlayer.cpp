@@ -172,13 +172,7 @@ void RPiPlayer::onInputBufferFilled() {
 	obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
 }
 
-void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
-	printf("RPiPlayer::onPlayVideoBuffer\n");
-	static int i = 0;
-	i++;
-	if (i == 100) {
-		stop();
-	}
+void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {	
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	size_t omxBufferFillLevel;
 	size_t offset = 0;
