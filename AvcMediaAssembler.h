@@ -25,7 +25,7 @@ public:
 		SEQ_NUMBER_FAILURE,
 	};
 
-	AvcMediaAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
+	AvcMediaAssembler(sp< android::util::List< sp<android::util::Buffer> > > queue, const sp<android::os::Message>& notifyAccessUnit);
 	virtual ~AvcMediaAssembler();
 
 	virtual void processMediaQueue();
@@ -40,7 +40,7 @@ private:
 	void processSingleNalUnit(sp<android::util::Buffer> nalUnit);
 	Status processFragNalUnit();
 
-	android::util::List< sp<android::util::Buffer> >& mQueue;
+	sp< android::util::List< sp<android::util::Buffer> > > mQueue;
 	sp<android::os::Message> mNotifyAccessUnit;
 	uint32_t mSeqNumber;
 	bool mInitSeqNumber;

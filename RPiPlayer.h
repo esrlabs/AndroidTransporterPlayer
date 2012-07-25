@@ -53,8 +53,8 @@ private:
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
 	sp< android::os::LooperThread<NetHandler> > mNetLooper;
-	android::util::List< sp<android::util::Buffer> > mAudioAccessUnits;
-	android::util::List< sp<android::util::Buffer> > mVideoAccessUnits;
+	sp< android::util::List< sp<android::util::Buffer> > > mAudioAccessUnits;
+	sp< android::util::List< sp<android::util::Buffer> > > mVideoAccessUnits;
 
 	// Audio
 	ILCLIENT_T* mAudioClient;
@@ -74,8 +74,8 @@ private:
 	bool mPortSettingsChanged;
 	bool mFirstPacketVideo;
 
-	android::util::List< OMX_BUFFERHEADERTYPE* > mFilledOmxInputBuffers;
-	android::util::List< OMX_BUFFERHEADERTYPE* > mEmptyOmxInputBuffers;
+	sp< android::util::List< OMX_BUFFERHEADERTYPE* > > mFilledOmxInputBuffers;
+	sp< android::util::List< OMX_BUFFERHEADERTYPE* > > mEmptyOmxInputBuffers;
 };
 
 #endif /* RPIPLAYER_H_ */

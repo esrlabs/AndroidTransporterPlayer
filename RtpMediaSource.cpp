@@ -1,7 +1,7 @@
 #include "RtpMediaSource.h"
 #include "android/os/Handler.h"
-#include "android/util/Buffer.h"
 #include "android/net/DatagramSocket.h"
+#include "android/util/Buffer.h"
 #include "MediaAssembler.h"
 #include <stdio.h>
 #include <sys/socket.h>
@@ -15,6 +15,7 @@ using namespace android::net;
 RtpMediaSource::RtpMediaSource(uint16_t port) :
 		mRtpPacketCounter(0),
 		mHighestSeqNumber(0) {
+	mQueue = new List< sp<Buffer> >();
 	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET));
 }
 
@@ -164,7 +165,7 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 
 	if (mRtpPacketCounter++ == 0) {
 		mHighestSeqNumber = seqNum;
-		mQueue.push_back(buffer);
+		mQueue->push_back(buffer);
 		mMediaAssembler->processMediaQueue();
 		return;
 	}
@@ -195,16 +196,16 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 
 	buffer->setMetaData(seqNum);
 
-	List< sp<Buffer> >::iterator itr = mQueue.begin();
-	while (itr != mQueue.end() && (uint32_t)(*itr)->getMetaData() < seqNum) {
+	List< sp<Buffer> >::iterator itr = mQueue->begin();
+	while (itr != mQueue->end() && (uint32_t)(*itr)->getMetaData() < seqNum) {
 		++itr;
 	}
 
-	if (itr != mQueue.end() && (uint32_t)(*itr)->getMetaData() == seqNum) {
+	if (itr != mQueue->end() && (uint32_t)(*itr)->getMetaData() == seqNum) {
 		return;
 	}
 
-	mQueue.insert(itr, buffer);
+	mQueue->insert(itr, buffer);
 
 	mMediaAssembler->processMediaQueue();
 }

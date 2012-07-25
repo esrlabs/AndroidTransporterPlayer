@@ -19,13 +19,13 @@ class PcmMediaAssembler :
 	public MediaAssembler
 {
 public:
-	PcmMediaAssembler(android::util::List< sp<android::util::Buffer> >& queue, const sp<android::os::Message>& notifyAccessUnit);
+	PcmMediaAssembler(sp< android::util::List< sp<android::util::Buffer> > > queue, const sp<android::os::Message>& notifyAccessUnit);
 	virtual ~PcmMediaAssembler();
 
 	virtual void processMediaQueue();
 
 private:
-	android::util::List< sp<android::util::Buffer> >& mQueue;
+	sp< android::util::List< sp<android::util::Buffer> > > mQueue;
 	sp<android::os::Message> mNotifyAccessUnit;
 	sp<android::util::Buffer> mAccessUnit;
 	int mAccessUnitOffset;

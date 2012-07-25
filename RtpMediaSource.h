@@ -4,7 +4,6 @@
 #include "android/os/Handler.h"
 #include "android/os/Thread.h"
 #include "android/util/List.h"
-#include "MediaSourceType.h"
 
 class MediaAssembler;
 namespace android {
@@ -33,7 +32,7 @@ public:
 
 	virtual void handleMessage(const sp<android::os::Message>& message);
 
-	android::util::List< sp<android::util::Buffer> >& getMediaQueue() { return mQueue; }
+	sp< android::util::List< sp<android::util::Buffer> > > getMediaQueue() { return mQueue; }
 
 private:
 	class NetReceiver :
@@ -64,11 +63,10 @@ private:
 	void processRtpPayload(const sp<android::util::Buffer>& buffer);
 
 	sp<NetReceiver> mNetReceiver;
-	android::util::List< sp<android::util::Buffer> > mQueue;
+	sp< android::util::List< sp<android::util::Buffer> > > mQueue;
 	sp<MediaAssembler> mMediaAssembler;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;
-	MediaSourceType mType;
 
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(RtpMediaSource)
 };
