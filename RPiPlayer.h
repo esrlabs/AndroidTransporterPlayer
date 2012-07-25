@@ -1,25 +1,23 @@
 #ifndef RPIPLAYER_H_
 #define RPIPLAYER_H_
 
-#include "android/os/LooperThread.h"
+#include "mindroid/os/LooperThread.h"
 #include "NetHandler.h"
-#include "android/lang/String.h"
-#include "android/util/List.h"
+#include "mindroid/lang/String.h"
+#include "mindroid/util/List.h"
 extern "C" {
 #include "bcm_host.h"
 #include "ilclient.h"
 }
 
-namespace android {
-namespace util {
+namespace mindroid {
 class Buffer;
 }
-}
 
-using android::os::sp;
+using mindroid::sp;
 
 class RPiPlayer :
-	public android::os::Handler
+	public mindroid::Handler
 {
 public:
 	static const uint32_t NOTIFY_QUEUE_AUDIO_BUFFER = 1;
@@ -33,28 +31,28 @@ public:
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
-	bool start(android::lang::String url);
+	bool start(mindroid::String url);
 	void stop();
 
-	virtual void handleMessage(const sp<android::os::Message>& message);
+	virtual void handleMessage(const sp<mindroid::Message>& message);
 
 private:
-	bool startMediaSource(const android::lang::String& url);
+	bool startMediaSource(const mindroid::String& url);
 	void stopMediaSource();
 	int initOMXAudio();
 	bool setAudioSink(const char* sinkName);
 	void finalizeOMXAudio();
 	int initOMXVideo();
 	void finalizeOMXVideo();
-	void onPlayAudioBuffer(const sp<android::util::Buffer>& accessUnit);
+	void onPlayAudioBuffer(const sp<mindroid::Buffer>& accessUnit);
 	void onFillInputBuffers();
 	void onInputBufferFilled();
-	void onPlayVideoBuffer(const sp<android::util::Buffer>& accessUnit);
+	void onPlayVideoBuffer(const sp<mindroid::Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
-	sp< android::os::LooperThread<NetHandler> > mNetLooper;
-	sp< android::util::List< sp<android::util::Buffer> > > mAudioAccessUnits;
-	sp< android::util::List< sp<android::util::Buffer> > > mVideoAccessUnits;
+	sp< mindroid::LooperThread<NetHandler> > mNetLooper;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mAudioAccessUnits;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mVideoAccessUnits;
 
 	// Audio
 	ILCLIENT_T* mAudioClient;
@@ -74,8 +72,8 @@ private:
 	bool mPortSettingsChanged;
 	bool mFirstPacketVideo;
 
-	sp< android::util::List< OMX_BUFFERHEADERTYPE* > > mFilledOmxInputBuffers;
-	sp< android::util::List< OMX_BUFFERHEADERTYPE* > > mEmptyOmxInputBuffers;
+	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mFilledOmxInputBuffers;
+	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mEmptyOmxInputBuffers;
 };
 
 #endif /* RPIPLAYER_H_ */

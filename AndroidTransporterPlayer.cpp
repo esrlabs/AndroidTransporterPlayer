@@ -1,10 +1,9 @@
 #include <stdio.h>
-#include "android/os/Looper.h"
-#include "android/lang/String.h"
+#include "mindroid/os/Looper.h"
+#include "mindroid/lang/String.h"
 #include "RPiPlayer.h"
 
-using namespace android::os;
-using namespace android::lang;
+using namespace mindroid;
 
 int main(int argc, char** argv)
 {

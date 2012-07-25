@@ -1,16 +1,13 @@
 #include "RtspMediaSource.h"
 #include "NetHandler.h"
-#include "android/os/Message.h"
-#include "android/os/Handler.h"
-#include "android/util/Buffer.h"
+#include "mindroid/os/Message.h"
+#include "mindroid/os/Handler.h"
+#include "mindroid/util/Buffer.h"
 #include <stdio.h>
 
-using namespace android::os;
-using namespace android::lang;
-using namespace android::util;
-using namespace android::net;
+using namespace mindroid;
 
-RtspMediaSource::RtspMediaSource(const sp<android::os::Handler>& netHandler) :
+RtspMediaSource::RtspMediaSource(const sp<Handler>& netHandler) :
 		mNetHandler(netHandler),
 		mCSeq(1) {
 }
@@ -18,7 +15,7 @@ RtspMediaSource::RtspMediaSource(const sp<android::os::Handler>& netHandler) :
 RtspMediaSource::~RtspMediaSource() {
 }
 
-bool RtspMediaSource::start(const android::lang::String& url) {
+bool RtspMediaSource::start(const String& url) {
 	if (!url.startsWith("rtsp://")) {
 		return false;
 	}
@@ -63,7 +60,7 @@ void RtspMediaSource::stop() {
 	mNetHandler = NULL;
 }
 
-void RtspMediaSource::handleMessage(const sp<android::os::Message>& message) {
+void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case DESCRIBE_MEDIA_SOURCE: {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;

@@ -1,11 +1,10 @@
 #include "PcmMediaAssembler.h"
-#include "android/os/Message.h"
-#include "android/util/Buffer.h"
+#include "mindroid/os/Message.h"
+#include "mindroid/util/Buffer.h"
 #include <string.h>
 #include <stdio.h>
 
-using namespace android::os;
-using namespace android::util;
+using namespace mindroid;
 
 static const size_t FRAMES_PER_UNIT = 2205;
 static const size_t BYTES_PER_FRAME = 4;
@@ -14,7 +13,7 @@ static const size_t RTP_PACKET_SMALL_SIZE = 492;
 static const size_t RTP_PACKET_LARGE_SIZE = 1388;
 
 
-PcmMediaAssembler::PcmMediaAssembler(sp< List< sp<Buffer> > > queue, const sp<android::os::Message>& notifyAccessUnit) :
+PcmMediaAssembler::PcmMediaAssembler(sp< List< sp<Buffer> > > queue, const sp<Message>& notifyAccessUnit) :
 		mQueue(queue),
 		mNotifyAccessUnit(notifyAccessUnit),
 		mAccessUnit(NULL),

@@ -1,16 +1,14 @@
 #include "RtpMediaSource.h"
-#include "android/os/Handler.h"
-#include "android/net/DatagramSocket.h"
-#include "android/util/Buffer.h"
+#include "mindroid/os/Handler.h"
+#include "mindroid/net/DatagramSocket.h"
+#include "mindroid/util/Buffer.h"
 #include "MediaAssembler.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-using namespace android::os;
-using namespace android::util;
-using namespace android::net;
+using namespace mindroid;
 
 RtpMediaSource::RtpMediaSource(uint16_t port) :
 		mRtpPacketCounter(0),

@@ -1,11 +1,9 @@
 #include "RtspSocket.h"
 #include <sys/socket.h>
-#include "android/util/List.h"
+#include "mindroid/util/List.h"
 
 using namespace std;
-using namespace android::os;
-using namespace android::util;
-using namespace android::lang;
+using namespace mindroid;
 
 RtspSocket::RtspSocket() :
 	Socket() {

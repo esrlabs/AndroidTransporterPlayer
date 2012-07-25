@@ -1,13 +1,12 @@
 #include "AvcMediaAssembler.h"
 #include "RtpMediaSource.h"
-#include "android/os/Message.h"
-#include "android/os/Clock.h"
-#include "android/util/Buffer.h"
+#include "mindroid/os/Message.h"
+#include "mindroid/os/Clock.h"
+#include "mindroid/util/Buffer.h"
 #include <string.h>
 #include <stdio.h>
 
-using namespace android::os;
-using namespace android::util;
+using namespace mindroid;
 
 AvcMediaAssembler::AvcMediaAssembler(sp< List< sp<Buffer> > > queue, const sp<Message>& notifyAccessUnit) :
 		mQueue(queue),

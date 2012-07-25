@@ -1,13 +1,11 @@
 #include "RPiPlayer.h"
 #include <errno.h>
-#include "android/os/Bundle.h"
-#include "android/util/Buffer.h"
+#include "mindroid/os/Bundle.h"
+#include "mindroid/util/Buffer.h"
 #include <stdio.h>
 #include <unistd.h>
 
-using namespace android::os;
-using namespace android::util;
-using namespace android::lang;
+using namespace mindroid;
 
 static const uint32_t 	SAMPLE_RATE = 43940; //44100;
 static const uint32_t 	NUMBER_CHANNELS = 2;
@@ -40,7 +38,7 @@ RPiPlayer::RPiPlayer() :
 RPiPlayer::~RPiPlayer() {
 }
 
-bool RPiPlayer::start(android::lang::String url) {
+bool RPiPlayer::start(String url) {
 	bcm_host_init();
 
 	if (OMX_Init() != OMX_ErrorNone) {
@@ -118,7 +116,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 	}
 }
 
-bool RPiPlayer::startMediaSource(const android::lang::String& url) {
+bool RPiPlayer::startMediaSource(const String& url) {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::START_MEDIA_SOURCE);
 	sp<Bundle> bundle = new Bundle();
 	bundle->putObject("Player", this);

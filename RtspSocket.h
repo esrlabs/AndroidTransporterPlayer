@@ -1,21 +1,21 @@
 #ifndef RTSPSOCKET_H_
 #define RTSPSOCKET_H_
 
-#include "android/net/Socket.h"
-#include "android/lang/String.h"
+#include "mindroid/net/Socket.h"
+#include "mindroid/lang/String.h"
 #include <map>
 
-typedef std::map<android::lang::String, android::lang::String> RtspHeader;
+typedef std::map<mindroid::String, mindroid::String> RtspHeader;
 
 class RtspSocket :
-	public android::net::Socket
+	public mindroid::Socket
 {
 public:
 
 	RtspSocket();
 	RtspSocket(const char* host, uint16_t port);
 	virtual ~RtspSocket() {}
-	android::lang::String readLine();
+	mindroid::String readLine();
 	RtspHeader* readPacketHeader();
 
 private:

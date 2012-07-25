@@ -1,17 +1,17 @@
 #ifndef NETHANDLER_H_
 #define NETHANDLER_H_
 
-#include "android/os/Handler.h"
-#include "android/os/LooperThread.h"
+#include "mindroid/os/Handler.h"
+#include "mindroid/os/LooperThread.h"
 #include "RtspMediaSource.h"
 #include "RtpMediaSource.h"
 
 class RPiPlayer;
 
-using android::os::sp;
+using mindroid::sp;
 
 class NetHandler :
-	public android::os::Handler
+	public mindroid::Handler
 {
 public:
 	static const uint32_t START_MEDIA_SOURCE = 0;
@@ -23,7 +23,7 @@ public:
 
 	NetHandler();
 	~NetHandler();
-	virtual void handleMessage(const sp<android::os::Message>& message);
+	virtual void handleMessage(const sp<mindroid::Message>& message);
 
 private:
 	static const uint16_t RTP_AUDIO_SOURCE_PORT = 56096;

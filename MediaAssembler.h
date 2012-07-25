@@ -1,10 +1,10 @@
 #ifndef MEDIAASSEMBLER_H_
 #define MEDIAASSEMBLER_H_
 
-#include "android/os/Ref.h"
+#include "mindroid/os/Ref.h"
 
 class MediaAssembler :
-	public android::os::Ref
+	public mindroid::Ref
 {
 public:
 	virtual void processMediaQueue() = 0;

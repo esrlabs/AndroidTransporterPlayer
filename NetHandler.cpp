@@ -1,11 +1,11 @@
 #include "NetHandler.h"
 #include "RPiPlayer.h"
-#include "android/os/Bundle.h"
+#include "mindroid/os/Bundle.h"
 #include "PcmMediaAssembler.h"
 #include "AvcMediaAssembler.h"
 #include <stdio.h>
 
-using namespace android::os;
+using namespace mindroid;
 
 NetHandler::NetHandler() {
 }

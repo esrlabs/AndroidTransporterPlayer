@@ -1,27 +1,21 @@
 #ifndef RTPMEDIASOURCE_H_
 #define RTPMEDIASOURCE_H_
 
-#include "android/os/Handler.h"
-#include "android/os/Thread.h"
-#include "android/util/List.h"
+#include "mindroid/os/Handler.h"
+#include "mindroid/os/Thread.h"
+#include "mindroid/util/List.h"
 
 class MediaAssembler;
-namespace android {
-namespace os {
+namespace mindroid {
 class Message;
-}
-namespace util {
 class Buffer;
-}
-namespace net {
 class DatagramSocket;
 }
-}
 
-using android::os::sp;
+using mindroid::sp;
 
 class RtpMediaSource :
-	public android::os::Handler
+	public mindroid::Handler
 {
 public:
 	RtpMediaSource(uint16_t port);
@@ -30,25 +24,25 @@ public:
 	bool start(sp<MediaAssembler> mediaAssembler);
 	void stop();
 
-	virtual void handleMessage(const sp<android::os::Message>& message);
+	virtual void handleMessage(const sp<mindroid::Message>& message);
 
-	sp< android::util::List< sp<android::util::Buffer> > > getMediaQueue() { return mQueue; }
+	sp< mindroid::List< sp<mindroid::Buffer> > > getMediaQueue() { return mQueue; }
 
 private:
 	class NetReceiver :
-		public android::os::Thread
+		public mindroid::Thread
 	{
 	public:
-		NetReceiver(uint16_t port, sp<android::os::Message> notifyRtpPacket);
+		NetReceiver(uint16_t port, sp<mindroid::Message> notifyRtpPacket);
 		virtual void run();
 		void stop();
 
 	private:
 		static const uint32_t MAX_UDP_PACKET_SIZE = 65536;
 
-		sp<android::net::DatagramSocket> mRtpSocket;
-		sp<android::net::DatagramSocket> mRtcpSocket;
-		sp<android::os::Message> mNotifyRtpPacket;
+		sp<mindroid::DatagramSocket> mRtpSocket;
+		sp<mindroid::DatagramSocket> mRtcpSocket;
+		sp<mindroid::Message> mNotifyRtpPacket;
 		int mPipe[2];
 
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
@@ -59,11 +53,11 @@ private:
 	static const uint32_t EXT_HEADER_BIT = 1 << 4;
 	static const uint32_t PADDING_BIT = 1 << 5;
 
-	int parseRtpHeader(const sp<android::util::Buffer>& buffer);
-	void processRtpPayload(const sp<android::util::Buffer>& buffer);
+	int parseRtpHeader(const sp<mindroid::Buffer>& buffer);
+	void processRtpPayload(const sp<mindroid::Buffer>& buffer);
 
 	sp<NetReceiver> mNetReceiver;
-	sp< android::util::List< sp<android::util::Buffer> > > mQueue;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
 	sp<MediaAssembler> mMediaAssembler;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;

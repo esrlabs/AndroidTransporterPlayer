@@ -2,32 +2,28 @@
 #define PCMMEDIAASSEMBLER_H_
 
 #include "MediaAssembler.h"
-#include "android/util/List.h"
+#include "mindroid/util/List.h"
 
-namespace android {
-namespace os {
+namespace mindroid {
 class Message;
-}
-namespace util {
 class Buffer;
 }
-}
 
-using android::os::sp;
+using mindroid::sp;
 
 class PcmMediaAssembler :
 	public MediaAssembler
 {
 public:
-	PcmMediaAssembler(sp< android::util::List< sp<android::util::Buffer> > > queue, const sp<android::os::Message>& notifyAccessUnit);
+	PcmMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, const sp<mindroid::Message>& notifyAccessUnit);
 	virtual ~PcmMediaAssembler();
 
 	virtual void processMediaQueue();
 
 private:
-	sp< android::util::List< sp<android::util::Buffer> > > mQueue;
-	sp<android::os::Message> mNotifyAccessUnit;
-	sp<android::util::Buffer> mAccessUnit;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
+	sp<mindroid::Message> mNotifyAccessUnit;
+	sp<mindroid::Buffer> mAccessUnit;
 	int mAccessUnitOffset;
 
 	bool mStartStream;

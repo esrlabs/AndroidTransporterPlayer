@@ -2,18 +2,14 @@
 #define AVCMEDIAASSEMBLER_H_
 
 #include "MediaAssembler.h"
-#include "android/util/List.h"
+#include "mindroid/util/List.h"
 
-namespace android {
-namespace os {
+namespace mindroid {
 class Message;
-}
-namespace util {
 class Buffer;
 }
-}
 
-using android::os::sp;
+using mindroid::sp;
 
 class AvcMediaAssembler :
 	public MediaAssembler
@@ -25,7 +21,7 @@ public:
 		SEQ_NUMBER_FAILURE,
 	};
 
-	AvcMediaAssembler(sp< android::util::List< sp<android::util::Buffer> > > queue, const sp<android::os::Message>& notifyAccessUnit);
+	AvcMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, const sp<mindroid::Message>& notifyAccessUnit);
 	virtual ~AvcMediaAssembler();
 
 	virtual void processMediaQueue();
@@ -37,11 +33,11 @@ private:
 	static const uint64_t TIME_PERIOD_20MS = 20000000LL;
 
 	Status assembleNalUnits();
-	void processSingleNalUnit(sp<android::util::Buffer> nalUnit);
+	void processSingleNalUnit(sp<mindroid::Buffer> nalUnit);
 	Status processFragNalUnit();
 
-	sp< android::util::List< sp<android::util::Buffer> > > mQueue;
-	sp<android::os::Message> mNotifyAccessUnit;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
+	sp<mindroid::Message> mNotifyAccessUnit;
 	uint32_t mSeqNumber;
 	bool mInitSeqNumber;
 	uint64_t mFirstSeqNumberFailureTime;

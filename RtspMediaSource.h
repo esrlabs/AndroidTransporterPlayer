@@ -1,27 +1,23 @@
 #ifndef RTSPMEDIASOURCE_H_
 #define RTSPMEDIASOURCE_H_
 
-#include "android/os/Handler.h"
-#include "android/os/Thread.h"
-#include "android/os/Lock.h"
-#include "android/lang/String.h"
-#include "android/util/List.h"
+#include "mindroid/os/Handler.h"
+#include "mindroid/os/Thread.h"
+#include "mindroid/os/Lock.h"
+#include "mindroid/lang/String.h"
+#include "mindroid/util/List.h"
 #include "RtspSocket.h"
 #include <map>
 
-namespace android {
-namespace os {
+namespace mindroid {
 class Message;
-}
-namespace util {
 class Buffer;
 }
-}
 
-using android::os::sp;
+using mindroid::sp;
 
 class RtspMediaSource :
-	public android::os::Handler {
+	public mindroid::Handler {
 public:
 	static const uint32_t START_VIDEO_TRACK = 0;
 	static const uint32_t START_AUDIO_TRACK = 1;
@@ -31,17 +27,17 @@ public:
 	static const uint32_t SETUP_VIDEO_TRACK = 5;
 	static const uint32_t PLAY_VIDEO_TRACK = 6;
 
-	RtspMediaSource(const sp<android::os::Handler>& netHandler);
+	RtspMediaSource(const sp<mindroid::Handler>& netHandler);
 	virtual ~RtspMediaSource();
 
-	bool start(const android::lang::String& url);
+	bool start(const mindroid::String& url);
 	void stop();
 
-	virtual void handleMessage(const sp<android::os::Message>& message);
+	virtual void handleMessage(const sp<mindroid::Message>& message);
 
 private:
 	class NetReceiver :
-		public android::os::Thread
+		public mindroid::Thread
 	{
 	public:
 		NetReceiver(const sp<RtspMediaSource>& mediaSource);
@@ -57,29 +53,29 @@ private:
 
 	sp<RtspSocket> getSocket() { return mSocket; }
 	void describeMediaSource();
-	void onDescribeMediaSource(const sp<android::util::Buffer>& desc);
+	void onDescribeMediaSource(const sp<mindroid::Buffer>& desc);
 	void setupAudioTrack(uint16_t port);
 	void playAudioTrack();
 	void setupVideoTrack(uint16_t port);
 	void playVideoTrack();
-	void setPendingRequest(uint32_t id, const sp<android::os::Message>& message);
-	sp<android::os::Message> getPendingRequest(uint32_t id);
-	sp<android::os::Message> removePendingRequest(uint32_t id);
+	void setPendingRequest(uint32_t id, const sp<mindroid::Message>& message);
+	sp<mindroid::Message> getPendingRequest(uint32_t id);
+	sp<mindroid::Message> removePendingRequest(uint32_t id);
 
-	sp<android::os::Handler> mNetHandler;
+	sp<mindroid::Handler> mNetHandler;
 	sp<NetReceiver> mNetReceiver;
 	sp<RtspSocket> mSocket;
-	android::lang::String mHost;
-	android::lang::String mPort;
-	android::lang::String mSdpFile;
-	android::lang::String mAudioMediaSource;
-	android::lang::String mAudioSessionId;
-	android::lang::String mVideoMediaSource;
-	android::lang::String mVideoSessionId;
+	mindroid::String mHost;
+	mindroid::String mPort;
+	mindroid::String mSdpFile;
+	mindroid::String mAudioMediaSource;
+	mindroid::String mAudioSessionId;
+	mindroid::String mVideoMediaSource;
+	mindroid::String mVideoSessionId;
 	uint32_t mCSeq;
 
-	android::os::Lock mLock;
-	std::map< uint32_t, sp<android::os::Message> > mPendingRequests;
+	mindroid::Lock mLock;
+	std::map< uint32_t, sp<mindroid::Message> > mPendingRequests;
 
 	friend class NetReceiver;
 };
