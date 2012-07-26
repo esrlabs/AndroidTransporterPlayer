@@ -1,9 +1,21 @@
 #include <stdio.h>
-#include "mindroid/os/Looper.h"
-#include "mindroid/lang/String.h"
+#include <signal.h>
+#include <mindroid/os/Looper.h>
+#include <mindroid/lang/String.h>
 #include "RPiPlayer.h"
 
 using namespace mindroid;
+
+sp<RPiPlayer> rPiPlayer;
+
+void shutdownHook(int s)
+{
+  if (s == SIGINT)
+  {
+    rPiPlayer->stop();
+    exit(1);
+  }
+}
 
 int main(int argc, char** argv)
 {
@@ -14,7 +26,9 @@ int main(int argc, char** argv)
 
 	Looper::prepare();
 	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
-	sp<RPiPlayer> rPiPlayer = new RPiPlayer();
+
+	signal(SIGINT, shutdownHook);
+	rPiPlayer = new RPiPlayer();
 	rPiPlayer->start(String(argv[1]));
 	Looper::loop();
 
