@@ -11,8 +11,8 @@
 using namespace mindroid;
 
 RtpMediaSource::RtpMediaSource(uint16_t port) :
-		mRtpPacketCounter(0),
-		mHighestSeqNumber(0) {
+	mRtpPacketCounter(0),
+	mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
 	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET));
 }
@@ -43,7 +43,7 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
 }
 
 RtpMediaSource::NetReceiver::NetReceiver(uint16_t port, sp<Message> notifyRtpPacket) :
-		mNotifyRtpPacket(notifyRtpPacket) {
+	mNotifyRtpPacket(notifyRtpPacket) {
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
@@ -90,6 +90,7 @@ void RtpMediaSource::NetReceiver::run() {
 		}
 
 		int result = select(maxId + 1, &sockets, NULL, NULL, NULL);
+
 		if (result > 0) {
 			if (FD_ISSET(mRtpSocket->getId(), &sockets)) {
 				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
@@ -105,57 +106,76 @@ void RtpMediaSource::NetReceiver::run() {
 			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
 			}
 		}
+		/*
+		  sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
+		  ssize_t size = mRtpSocket->recv(buffer->data(), buffer->capacity());
+		  if (size > 0) {
+		  buffer->setRange(0, size);
+		  sp<Message> msg = mNotifyRtpPacket->dup();
+		  sp<Bundle> bundle = new Bundle();
+		  bundle->putObject("RTP-Packet", buffer);
+		  msg->setData(bundle);
+		  msg->sendToTarget();
+		  }
+		*/
 	}
 }
 
 int RtpMediaSource::parseRtpHeader(const sp<Buffer>& buffer) {
-    size_t size = buffer->size();
-    const uint8_t* data = buffer->data();
+	size_t size = buffer->size();
+	const uint8_t* data = buffer->data();
 
-    if (size < RTP_HEADER_SIZE) {
-        return -1;
-    }
+	if (size < RTP_HEADER_SIZE) {
+		return -1;
+	}
 
-    if ((data[0] >> 6) != 2) { // v2.0
-        return -1;
-    }
+	if ((data[0] >> 6) != 2) { // v2.0
+		return -1;
+	}
 
-    if (data[0] & PADDING_BIT) {
-        size_t paddingSize = data[size - 1];
-        if (paddingSize + RTP_HEADER_SIZE > size) {
-            return -1;
-        }
-        size -= paddingSize;
-    }
+	if (data[0] & PADDING_BIT) {
+		size_t paddingSize = data[size - 1];
+		if (paddingSize + RTP_HEADER_SIZE > size) {
+			return -1;
+		}
+		size -= paddingSize;
+	}
 
-    int numCSRCs = data[0] & 0x0F;
-    size_t payloadOffset = 12 + 4 * numCSRCs;
-    if (size < payloadOffset) {
-        return -1;
-    }
+	int numCSRCs = data[0] & 0x0F;
+	size_t payloadOffset = 12 + 4 * numCSRCs;
+	if (size < payloadOffset) {
+		return -1;
+	}
 
-    if (data[0] & EXT_HEADER_BIT) {
-        if (size < payloadOffset + 4) {
-            return -1;
-        }
+	if (data[0] & EXT_HEADER_BIT) {
+		if (size < payloadOffset + 4) {
+			return -1;
+		}
 
-        const uint8_t* extensionData = &data[payloadOffset];
+		const uint8_t* extensionData = &data[payloadOffset];
 
-        size_t extensionSize =
-            4 * (extensionData[2] << 8 | extensionData[3]);
+		size_t extensionSize =
+			4 * (extensionData[2] << 8 | extensionData[3]);
 
-        if (size < payloadOffset + 4 + extensionSize) {
-            return -1;
-        }
+		if (size < payloadOffset + 4 + extensionSize) {
+			return -1;
+		}
 
-        payloadOffset += 4 + extensionSize;
-    }
+		payloadOffset += 4 + extensionSize;
+	}
 
-    buffer->setRange(payloadOffset, size - payloadOffset);
-    uint16_t seqNum = data[2] << 8 | data[3];
-    buffer->setMetaData(seqNum);
+	buffer->setRange(payloadOffset, size - payloadOffset);
 
-    return 0;
+	bool markBit = data[1] & MARK_BIT;
+	uint16_t seqNum = data[2] << 8 | data[3];
+	uint32_t timestamp = data[4] << 24 | data[5] << 16 | data[6] << 8 | data[7];
+
+	buffer->setMetaData(seqNum);
+	buffer->mBundle.putUInt16("seqNum", seqNum);
+	buffer->mBundle.putBool("mark", markBit);
+	buffer->mBundle.putUInt32("timestamp", timestamp);
+
+	return 0;
 }
 
 void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
@@ -204,6 +224,5 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 	}
 
 	mQueue->insert(itr, buffer);
-
 	mMediaAssembler->processMediaQueue();
 }

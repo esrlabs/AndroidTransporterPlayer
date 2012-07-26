@@ -1,18 +1,20 @@
 #include "RPiPlayer.h"
 #include <errno.h>
-#include "mindroid/os/Bundle.h"
-#include "mindroid/util/Buffer.h"
+#include <mindroid/os/Bundle.h>
+#include <mindroid/util/Buffer.h>
+#include <mindroid/os/Clock.h>
+
 #include <stdio.h>
 #include <unistd.h>
 
 using namespace mindroid;
 
-static const uint32_t 	SAMPLE_RATE = 43940; //44100;
-static const uint32_t 	NUMBER_CHANNELS = 2;
-static const uint32_t 	NUMBER_BITS_PER_SAMPLE = 16;
-static const uint32_t 	NUMBER_OMX_BUFFERS = 1;
-static const uint32_t 	NUMBER_ACCESS_UNITS = 8;
-static const uint32_t   NUM_AUDIO_FRAMES = 2205;
+static const uint32_t	SAMPLE_RATE = 43932; //44100;
+static const uint32_t	NUMBER_CHANNELS = 2;
+static const uint32_t	NUMBER_BITS_PER_SAMPLE = 16;
+static const uint32_t	NUMBER_OMX_BUFFERS = 2;
+static const uint32_t	NUMBER_ACCESS_UNITS = 2;
+static const uint32_t	NUM_AUDIO_FRAMES = 2205;
 
 RPiPlayer::RPiPlayer() :
 		mAudioClient(NULL),
@@ -26,6 +28,7 @@ RPiPlayer::RPiPlayer() :
 		mClock(NULL),
 		mPortSettingsChanged(false),
 		mFirstPacketVideo(true) {
+  // TODO initializer list
 	mAudioAccessUnits = new List< sp<Buffer> >();
 	mVideoAccessUnits = new List< sp<Buffer> >();
 	mFilledOmxInputBuffers = new List< OMX_BUFFERHEADERTYPE* >();
@@ -36,6 +39,22 @@ RPiPlayer::RPiPlayer() :
 }
 
 RPiPlayer::~RPiPlayer() {
+}
+
+uint32_t RPiPlayer::getSamplesInOmx()
+{
+   OMX_PARAM_U32TYPE param;
+   OMX_ERRORTYPE error;
+
+   memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
+   param.nSize = sizeof(OMX_PARAM_U32TYPE);
+   param.nVersion.nVersion = OMX_VERSION;
+   param.nPortIndex = 100;
+
+   error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
+   assert(error == OMX_ErrorNone);
+
+   return param.nU32;
 }
 
 bool RPiPlayer::start(String url) {
@@ -64,19 +83,17 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		mAudioAccessUnits->push_back(accessUnit);
 		//static int count = 0;
 		//if (count++ % 10 == 0) {
-		//	printf("A: %d E: %d F: %d\n", mAudioAccessUnits.size(), mEmptyOmxInputBuffers.size(), mFilledOmxInputBuffers.size());
+		//  printf("A: %d E: %d F: %d\n", mAudioAccessUnits->size(), mEmptyOmxInputBuffers->size(), mFilledOmxInputBuffers->size());
 		//}
-		if (mAudioAccessUnits->size() > NUMBER_ACCESS_UNITS) {
-			obtainMessage(NOTIFY_FILL_INPUT_BUFFERS)->sendToTarget();
-		}
+			static bool first = true;
+			if ((mAudioAccessUnits->size() >= NUMBER_ACCESS_UNITS) || !first) {
+			  onFillInputBuffers();
+			  first = false;
+			}
 		break;
 	}
 	case NOTIFY_PLAY_AUDIO_BUFFER: {
-		onPlayAudioBuffer(*mAudioAccessUnits->begin());
-		break;
-	}
-	case NOTIFY_FILL_INPUT_BUFFERS: {
-		onFillInputBuffers();
+	  onPlayAudioBuffer();
 		break;
 	}
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
@@ -91,10 +108,6 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 			onPlayVideoBuffer(*mVideoAccessUnits->begin());
 			mVideoAccessUnits->erase(mVideoAccessUnits->begin());
 		}
-		break;
-	}
-	case NOTIFY_INPUT_BUFFER_FILLED: {
-		onInputBufferFilled();
 		break;
 	}
 	case STOP_MEDIA_SOURCE_DONE: {
@@ -148,31 +161,26 @@ void RPiPlayer::onFillInputBuffers() {
 		omxBuffer->nFilledLen = size;
 
 		mFilledOmxInputBuffers->push_back(omxBuffer);
-		obtainMessage(NOTIFY_INPUT_BUFFER_FILLED)->sendToTarget();
+		onPlayAudioBuffer();
+		//		obtainMessage(NOTIFY_INPUT_BUFFER_FILLED)->sendToTarget();
 	}
 }
 
-void RPiPlayer::onPlayAudioBuffer(const sp<Buffer>& accessUnit) {
-	if (mFilledOmxInputBuffers->size() > 0) {
-		OMX_ERRORTYPE result;
-		List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers->begin();
-		while (itr != mFilledOmxInputBuffers->end()) {
-			OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
-			itr = mFilledOmxInputBuffers->erase(itr);
-		    result = OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer);
-			if (result != OMX_ErrorNone) {
-				printf("OMX_EmptyThisBuffer failed: %d\n", result);
-				return;
-			}
-		}
+void RPiPlayer::onPlayAudioBuffer() {
+  List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers->begin();
+  while (itr != mFilledOmxInputBuffers->end()) {
+	OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
+	itr = mFilledOmxInputBuffers->erase(itr);
+
+	OMX_ERRORTYPE result = OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer);
+	if (result != OMX_ErrorNone) {
+	  printf("OMX_EmptyThisBuffer failed: %d\n", result);
+	  return;
 	}
+  }
 }
 
-void RPiPlayer::onInputBufferFilled() {
-	obtainMessage(NOTIFY_PLAY_AUDIO_BUFFER)->sendToTarget();
-}
-
-void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {	
+void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	size_t omxBufferFillLevel;
 	size_t offset = 0;
@@ -260,41 +268,41 @@ int RPiPlayer::initOMXAudio() {
 		return -1;
 	}
 
-    ilclient_create_component(mAudioClient, &mAudioRenderer, const_cast<char *>("audio_render"), (ILCLIENT_CREATE_FLAGS_T)(ILCLIENT_ENABLE_INPUT_BUFFERS | ILCLIENT_DISABLE_ALL_PORTS));
+	ilclient_create_component(mAudioClient, &mAudioRenderer, const_cast<char *>("audio_render"), (ILCLIENT_CREATE_FLAGS_T)(ILCLIENT_ENABLE_INPUT_BUFFERS | ILCLIENT_DISABLE_ALL_PORTS));
 
-    mAudioComponentList[0] = mAudioRenderer;
+	mAudioComponentList[0] = mAudioRenderer;
 
-    OMX_PARAM_PORTDEFINITIONTYPE portDefinitions;
-    memset(&portDefinitions, 0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    portDefinitions.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    portDefinitions.nVersion.nVersion = OMX_VERSION;
-    portDefinitions.nPortIndex = 100;
+	OMX_PARAM_PORTDEFINITIONTYPE portDefinitions;
+	memset(&portDefinitions, 0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+	portDefinitions.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+	portDefinitions.nVersion.nVersion = OMX_VERSION;
+	portDefinitions.nPortIndex = 100;
 
-    OMX_ERRORTYPE result;
-    result = OMX_GetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
-    assert(result == OMX_ErrorNone);
+	OMX_ERRORTYPE result;
+	result = OMX_GetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
+	assert(result == OMX_ErrorNone);
 
-    // Buffers must be 16 byte aligned for VCHI
-    portDefinitions.nBufferSize = (bufferSize + 15) & ~15;
-    portDefinitions.nBufferCountActual = numOmxBuffers;
+	// Buffers must be 16 byte aligned for VCHI
+	portDefinitions.nBufferSize = (bufferSize + 15) & ~15;
+	portDefinitions.nBufferCountActual = numOmxBuffers;
 
-    result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
-    assert(result == OMX_ErrorNone);
+	result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
+	assert(result == OMX_ErrorNone);
 
-    OMX_AUDIO_PARAM_PCMMODETYPE pcmParams;
-    memset(&pcmParams, 0, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
-    pcmParams.nSize = sizeof(OMX_AUDIO_PARAM_PCMMODETYPE);
-    pcmParams.nVersion.nVersion = OMX_VERSION;
-    pcmParams.nPortIndex = 100;
-    pcmParams.nChannels = numChannels;
-    pcmParams.eNumData = OMX_NumericalDataSigned;
-    pcmParams.eEndian = OMX_EndianLittle;
-    pcmParams.nSamplingRate = sampleRate;
-    pcmParams.bInterleaved = OMX_TRUE;
-    pcmParams.nBitPerSample = bitsPerSample;
-    pcmParams.ePCMMode = OMX_AUDIO_PCMModeLinear;
+	OMX_AUDIO_PARAM_PCMMODETYPE pcmParams;
+	memset(&pcmParams, 0, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
+	pcmParams.nSize = sizeof(OMX_AUDIO_PARAM_PCMMODETYPE);
+	pcmParams.nVersion.nVersion = OMX_VERSION;
+	pcmParams.nPortIndex = 100;
+	pcmParams.nChannels = numChannels;
+	pcmParams.eNumData = OMX_NumericalDataSigned;
+	pcmParams.eEndian = OMX_EndianLittle;
+	pcmParams.nSamplingRate = sampleRate;
+	pcmParams.bInterleaved = OMX_TRUE;
+	pcmParams.nBitPerSample = bitsPerSample;
+	pcmParams.ePCMMode = OMX_AUDIO_PCMModeLinear;
 
-    switch(numChannels) {
+	switch(numChannels) {
 	case 1:
 		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelCF;
 		break;
@@ -318,21 +326,21 @@ int RPiPlayer::initOMXAudio() {
 		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
 		pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
 		break;
-    }
+	}
 
-    result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamAudioPcm, &pcmParams);
-    assert(result == OMX_ErrorNone);
+	result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamAudioPcm, &pcmParams);
+	assert(result == OMX_ErrorNone);
 
-    ilclient_change_component_state(mAudioRenderer, OMX_StateIdle);
-    if (ilclient_enable_port_buffers(mAudioRenderer, 100, NULL, NULL, NULL) < 0) {
-        ilclient_change_component_state(mAudioRenderer, OMX_StateLoaded);
-        ilclient_cleanup_components(mAudioComponentList);
-        return -2;
-    }
+	ilclient_change_component_state(mAudioRenderer, OMX_StateIdle);
+	if (ilclient_enable_port_buffers(mAudioRenderer, 100, NULL, NULL, NULL) < 0) {
+		ilclient_change_component_state(mAudioRenderer, OMX_StateLoaded);
+		ilclient_cleanup_components(mAudioComponentList);
+		return -2;
+	}
 
-    ilclient_change_component_state(mAudioRenderer, OMX_StateExecuting);
+	ilclient_change_component_state(mAudioRenderer, OMX_StateExecuting);
 
-    ilclient_set_empty_buffer_done_callback(mAudioClient, onEmptyBufferDone, this);
+	ilclient_set_empty_buffer_done_callback(mAudioClient, onEmptyBufferDone, this);
 
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	while ((omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, 0)) != NULL) {
@@ -343,18 +351,18 @@ int RPiPlayer::initOMXAudio() {
 }
 
 bool RPiPlayer::setAudioSink(const char* sinkName) {
-    OMX_CONFIG_BRCMAUDIODESTINATIONTYPE audioSink;
-    if (sinkName && strlen(sinkName) < sizeof(audioSink.sName)) {
-        memset(&audioSink, 0, sizeof(audioSink));
-        audioSink.nSize = sizeof(OMX_CONFIG_BRCMAUDIODESTINATIONTYPE);
-        audioSink.nVersion.nVersion = OMX_VERSION;
-        strcpy((char*)audioSink.sName, sinkName);
+	OMX_CONFIG_BRCMAUDIODESTINATIONTYPE audioSink;
+	if (sinkName && strlen(sinkName) < sizeof(audioSink.sName)) {
+		memset(&audioSink, 0, sizeof(audioSink));
+		audioSink.nSize = sizeof(OMX_CONFIG_BRCMAUDIODESTINATIONTYPE);
+		audioSink.nVersion.nVersion = OMX_VERSION;
+		strcpy((char*)audioSink.sName, sinkName);
 
-        OMX_ERRORTYPE result;
-        result = OMX_SetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigBrcmAudioDestination, &audioSink);
-        return result == OMX_ErrorNone;
-    }
-    return false;
+		OMX_ERRORTYPE result;
+		result = OMX_SetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigBrcmAudioDestination, &audioSink);
+		return result == OMX_ErrorNone;
+	}
+	return false;
 }
 
 void RPiPlayer::finalizeOMXAudio() {

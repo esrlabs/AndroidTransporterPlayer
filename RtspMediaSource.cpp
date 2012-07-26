@@ -3,7 +3,6 @@
 #include "mindroid/os/Message.h"
 #include "mindroid/os/Handler.h"
 #include "mindroid/util/Buffer.h"
-#include <stdio.h>
 
 using namespace mindroid;
 
@@ -146,7 +145,6 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 	String videoMediaDesc;
 
 	while (itr != lines->end()) {
-		printf("%s\n", itr->c_str());
 		if (itr->startsWith("m=")) {
 			mediaDesc = *itr;
 			if (mediaDesc.startsWith("m=audio 0 RTP/AVP 10")) {

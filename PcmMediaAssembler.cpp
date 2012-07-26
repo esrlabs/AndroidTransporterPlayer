@@ -1,6 +1,7 @@
 #include "PcmMediaAssembler.h"
-#include "mindroid/os/Message.h"
-#include "mindroid/util/Buffer.h"
+#include <mindroid/os/Message.h>
+#include <mindroid/util/Buffer.h>
+#include <mindroid/os/Clock.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -14,52 +15,95 @@ static const size_t RTP_PACKET_LARGE_SIZE = 1388;
 
 
 PcmMediaAssembler::PcmMediaAssembler(sp< List< sp<Buffer> > > queue, const sp<Message>& notifyAccessUnit) :
-		mQueue(queue),
-		mNotifyAccessUnit(notifyAccessUnit),
-		mAccessUnit(NULL),
-		mAccessUnitOffset(0),
-		mStartStream(false),
-		mLastRtpPacketSize(0) {
-}
+	mQueue(queue),
+	mNotifyAccessUnit(notifyAccessUnit),
+	mAccessUnit(NULL),
+	mAccessUnitOffset(0),
+	mStartStream(false),
+	mLastRtpPacketSize(0),
+	mLastSequence(ILLEGAL_SEQUENCE_NUMBER) {
+	}
 
 PcmMediaAssembler::~PcmMediaAssembler() {
 }
 
-void PcmMediaAssembler::processMediaQueue() {
-	if (!mQueue->empty()) {
-		sp<Buffer> buffer = *mQueue->begin();
-		mQueue->erase(mQueue->begin());
+void PcmMediaAssembler::newAccessUnit() {
+	mAccessUnit = new Buffer(UNIT_SIZE);
+	mAccessUnitOffset = 0;
+}
 
-		const uint8_t* data = buffer->data();
-		size_t size = buffer->size();
+void PcmMediaAssembler::appendToAccessUnit(sp<Buffer>& buffer) {
+	if (0 == mAccessUnit.getPointer()) {
+		return;
+	}
 
-		if (!mStartStream && mLastRtpPacketSize == RTP_PACKET_SMALL_SIZE && size == RTP_PACKET_LARGE_SIZE) {
-			mStartStream = true;
-		} else {
-			mLastRtpPacketSize = size;
-		}
+	assert(buffer->size() % 4 == 0);
+	assert(mAccessUnit->capacity() >= mAccessUnitOffset + buffer->size());
 
-		if (mStartStream) {
-			if(mAccessUnit == NULL) {
-				mAccessUnit = new Buffer(UNIT_SIZE);
-			}
-			uint16_t* dest = (uint16_t*) (mAccessUnit->data() + mAccessUnitOffset);
-			uint16_t* source = (uint16_t*) data;
+	uint16_t* source = (uint16_t*)(buffer->data());
+	uint16_t* dest = (uint16_t*)(mAccessUnit->data() + mAccessUnitOffset);
 
-			for(size_t i = 0; i < size; i += 2) {
-				*dest = (*source >> 8) | ((*source  << 8) & 0xFF00);
-				dest++;
-				source++;
-				mAccessUnitOffset += 2;
-				if(mAccessUnitOffset >= UNIT_SIZE) {
-					sp<Message> msg = mNotifyAccessUnit->dup();
-					msg->obj = new sp<Buffer>(mAccessUnit);
-					assert(msg->sendToTarget());
-					mAccessUnitOffset = 0;
-					mAccessUnit = new Buffer(UNIT_SIZE);
-					dest = (uint16_t*) (mAccessUnit->data());
-				}
-			}
+	for (size_t i = 0; i < buffer->size(); i += 2) {
+		*dest = (*source >> 8) | ((*source	<< 8) & 0xFF00);
+		dest++;
+		source++;
+		mAccessUnitOffset += 2;
+	}
+}
+
+void PcmMediaAssembler::accessUnitFinished() {
+	if (0 == mAccessUnit.getPointer()) {
+		return;
+	}
+
+	sp<Message> msg = mNotifyAccessUnit->dup();
+	msg->obj = new sp<Buffer>(mAccessUnit);
+
+	static uint64_t last = 0;
+	uint64_t now = Clock::realTime();
+	if (last != 0) {
+		int64_t deltaInUs = (now-last) / 1000;
+		if ((deltaInUs > 55000) || (deltaInUs < 45000)) {
+			printf("irregular delta in pcmassembler: %lld\n", deltaInUs);
 		}
 	}
+	last = now;
+
+	assert(msg->sendToTarget());
+}
+
+bool PcmMediaAssembler::sequenceStarted() {
+	return mLastSequence != ILLEGAL_SEQUENCE_NUMBER;
+}
+
+void PcmMediaAssembler::processMediaQueue() {
+	if (mQueue->empty()) {
+		return;
+	}
+
+	sp<Buffer> buffer = *mQueue->begin();
+	mQueue->erase(mQueue->begin());
+
+	uint16_t seqNum = 0;
+	bool mark = false;
+	assert(buffer->mBundle.fillUInt16("seqNum", &seqNum));
+	assert(buffer->mBundle.fillBool("mark", &mark));
+
+	if (sequenceStarted()) {
+		if (mLastSequence+1 == seqNum) {
+			appendToAccessUnit(buffer);
+		} else {
+			mAccessUnit = 0;
+		}
+
+		if (mark) {
+			accessUnitFinished();
+		}
+	}
+
+	if (mark) {
+		newAccessUnit();
+	}
+
+	mLastSequence = seqNum;
 }

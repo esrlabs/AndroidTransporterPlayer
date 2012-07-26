@@ -25,8 +25,6 @@ public:
 	static const uint32_t NOTIFY_PLAY_AUDIO_BUFFER = 3;
 	static const uint32_t NOTIFY_PLAY_VIDEO_BUFFER = 4;
 	static const uint32_t STOP_MEDIA_SOURCE_DONE = 5;
-	static const uint32_t NOTIFY_FILL_INPUT_BUFFERS = 6;
-	static const uint32_t NOTIFY_INPUT_BUFFER_FILLED = 7;
 	static const uint32_t NOTIFY_EMPTY_OMX_BUFFER = 8;
 
 	RPiPlayer();
@@ -44,9 +42,8 @@ private:
 	void finalizeOMXAudio();
 	int initOMXVideo();
 	void finalizeOMXVideo();
-	void onPlayAudioBuffer(const sp<mindroid::Buffer>& accessUnit);
+	void onPlayAudioBuffer();
 	void onFillInputBuffers();
-	void onInputBufferFilled();
 	void onPlayVideoBuffer(const sp<mindroid::Buffer>& accessUnit);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
@@ -74,6 +71,8 @@ private:
 
 	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mFilledOmxInputBuffers;
 	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mEmptyOmxInputBuffers;
+	uint32_t getSamplesInOmx();
+
 };
 
 #endif /* RPIPLAYER_H_ */
