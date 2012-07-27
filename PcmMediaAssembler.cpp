@@ -10,8 +10,6 @@ using namespace mindroid;
 static const size_t FRAMES_PER_UNIT = 2205;
 static const size_t BYTES_PER_FRAME = 4;
 static const size_t UNIT_SIZE = FRAMES_PER_UNIT * BYTES_PER_FRAME;
-static const size_t RTP_PACKET_SMALL_SIZE = 492;
-static const size_t RTP_PACKET_LARGE_SIZE = 1388;
 
 
 PcmMediaAssembler::PcmMediaAssembler(sp< List< sp<Buffer> > > queue, const sp<Message>& notifyAccessUnit) :
@@ -93,6 +91,7 @@ void PcmMediaAssembler::processMediaQueue() {
 		if (mLastSequence+1 == seqNum) {
 			appendToAccessUnit(buffer);
 		} else {
+		    printf("lost packet, last seq nr:%d\n", mLastSequence);
 			mAccessUnit = 0;
 		}
 

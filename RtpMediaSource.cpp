@@ -3,18 +3,20 @@
 #include "mindroid/net/DatagramSocket.h"
 #include "mindroid/util/Buffer.h"
 #include "MediaAssembler.h"
+#include "rtcp/Rtcp.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
 
 using namespace mindroid;
+using namespace rtcp;
 
 RtpMediaSource::RtpMediaSource(uint16_t port) :
 	mRtpPacketCounter(0),
 	mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
-	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET));
+	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET));
 }
 
 RtpMediaSource::~RtpMediaSource() {
@@ -31,19 +33,40 @@ void RtpMediaSource::stop() {
 }
 
 void RtpMediaSource::handleMessage(const sp<Message>& message) {
-	switch (message->what) {
-	case NOTIFY_RTP_PACKET:
-		sp<Bundle> bundle = message->getData();
-		sp<Buffer> buffer = bundle->getObject<Buffer>("RTP-Packet");
-		if (parseRtpHeader(buffer) == 0) {
-			processRtpPayload(buffer);
-		}
-		break;
-	}
+    switch (message->what) {
+        case NOTIFY_RTP_PACKET: {
+            sp<Bundle> bundle = message->getData();
+            sp<Buffer> buffer = bundle->getObject<Buffer>("RTP-Packet");
+            if (parseRtpHeader(buffer) == 0) {
+                processRtpPayload(buffer);
+            }
+            break;
+        }
+        case NOTIFY_RTCP_PACKET: {
+            sp<Bundle> bundle = message->getData();
+            sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
+            sp<Rtcp::SenderReport> senderReport = Rtcp::parseSenderReport(buffer);
+            if(senderReport.getPointer()) {
+                printf("packetCount:%d, version:%d, padding:%d, rrcount:%d, packetType:%d, length:%d, ssrc:%d, ntpTimestamp:%d, rtpTimestamp:%d, senderPacketCount:%d, senderOctetCount:%d, senderPacketCount:%d \n",
+                            senderReport->version,
+                            senderReport->padding,
+                            senderReport->rrcount,
+                            senderReport->packetType,
+                            senderReport->length,
+                            senderReport->ssrc,
+                            senderReport->ntpTimestamp,
+                            senderReport->rtpTimestamp,
+                            senderReport->senderPacketCount,
+                            senderReport->senderOctetCount);
+            }
+            break;
+        }
+    }
 }
 
-RtpMediaSource::NetReceiver::NetReceiver(uint16_t port, sp<Message> notifyRtpPacket) :
-	mNotifyRtpPacket(notifyRtpPacket) {
+RtpMediaSource::NetReceiver::NetReceiver(uint16_t port, sp<Message> notifyRtpPacket, sp<Message> notifyRtcpPacket) :
+	mNotifyRtpPacket(notifyRtpPacket),
+	mNotifyRtcpPacket(notifyRtcpPacket) {
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
@@ -104,10 +127,20 @@ void RtpMediaSource::NetReceiver::run() {
 					msg->sendToTarget();
 				}
 			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
+				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
+				ssize_t size = mRtcpSocket->recv(buffer->data(), buffer->capacity());
+				if (size > 0) {
+					buffer->setRange(0, size);
+					sp<Message> msg = mNotifyRtcpPacket->dup();
+					sp<Bundle> bundle = new Bundle();
+					bundle->putObject("RTCP-Packet", buffer);
+					msg->setData(bundle);
+					msg->sendToTarget();
+				}
 			}
 		}
 		/*
-		  sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
+		  sp<Buffer> buffer(newobtainMessage(NOTIFY_RTP_PACKET) Buffer(MAX_UDP_PACKET_SIZE));
 		  ssize_t size = mRtpSocket->recv(buffer->data(), buffer->capacity());
 		  if (size > 0) {
 		  buffer->setRange(0, size);

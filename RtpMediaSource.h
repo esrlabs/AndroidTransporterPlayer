@@ -33,7 +33,7 @@ private:
 		public mindroid::Thread
 	{
 	public:
-		NetReceiver(uint16_t port, sp<mindroid::Message> notifyRtpPacket);
+		NetReceiver(uint16_t port, sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
 		virtual void run();
 		void stop();
 
@@ -43,12 +43,14 @@ private:
 		sp<mindroid::DatagramSocket> mRtpSocket;
 		sp<mindroid::DatagramSocket> mRtcpSocket;
 		sp<mindroid::Message> mNotifyRtpPacket;
+		sp<mindroid::Message> mNotifyRtcpPacket;
 		int mPipe[2];
 
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
 	};
 
 	static const uint32_t NOTIFY_RTP_PACKET = 0;
+	static const uint32_t NOTIFY_RTCP_PACKET = 1;
 	static const uint32_t RTP_HEADER_SIZE = 12;
 	static const uint32_t EXT_HEADER_BIT = 1 << 4;
 	static const uint32_t PADDING_BIT = 1 << 5;

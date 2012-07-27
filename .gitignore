@@ -2,3 +2,4 @@ Debug
 *.o
 AndroidTransporterPlayer
 .settings
+tags
