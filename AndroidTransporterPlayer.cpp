@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 	signal(SIGINT, shutdownHook);
 
 	if (setpriority(PRIO_PROCESS, 0, -17) != 0) {
-		printf("Cannot set thread priorities. Please restart with more priviledges.\n");
+		printf("Cannot set thread priorities. Please restart with more privileges.\n");
 	}
 	Looper::prepare();
 	rpiPlayer = new RPiPlayer();
