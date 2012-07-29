@@ -9,52 +9,28 @@
 
 using namespace mindroid;
 
-static const uint32_t	SAMPLE_RATE = 43932; //44100;
-static const uint32_t	NUMBER_CHANNELS = 2;
-static const uint32_t	NUMBER_BITS_PER_SAMPLE = 16;
-static const uint32_t	NUMBER_OMX_BUFFERS = 2;
-static const uint32_t	NUMBER_ACCESS_UNITS = 2;
-static const uint32_t	NUM_AUDIO_FRAMES = 2205;
-
 RPiPlayer::RPiPlayer() :
 		mAudioClient(NULL),
 		mAudioRenderer(NULL),
 		mAudioBuffer(NULL),
-		mFirstPacketAudio(true),
+		mFirstAudioPacket(true),
 		mVideoClient(NULL),
 		mVideoDecoder(NULL),
 		mVideoScheduler(NULL),
 		mVideoRenderer(NULL),
 		mClock(NULL),
 		mPortSettingsChanged(false),
-		mFirstPacketVideo(true) {
-  // TODO initializer list
+		mFirstVideoPacket(true) {
 	mAudioBuffers = new List< sp<Buffer> >();
 	mVideoBuffers = new List< sp<Buffer> >();
-	mFilledOmxInputBuffers = new List< OMX_BUFFERHEADERTYPE* >();
-	mEmptyOmxInputBuffers = new List< OMX_BUFFERHEADERTYPE* >();
+	mOmxAudioInputBuffers = new List<OMX_BUFFERHEADERTYPE*>();
+	mOmxAudioEmptyBuffers = new List<OMX_BUFFERHEADERTYPE*>();
 	mNetLooper =  new LooperThread<NetHandler>();
 	mNetLooper->start();
 	mNetLooper->setSchedulingParams(SCHED_OTHER, -17);
 }
 
 RPiPlayer::~RPiPlayer() {
-}
-
-uint32_t RPiPlayer::getSamplesInOmx()
-{
-   OMX_PARAM_U32TYPE param;
-   OMX_ERRORTYPE error;
-
-   memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
-   param.nSize = sizeof(OMX_PARAM_U32TYPE);
-   param.nVersion.nVersion = OMX_VERSION;
-   param.nPortIndex = 100;
-
-   error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
-   assert(error == OMX_ErrorNone);
-
-   return param.nU32;
 }
 
 bool RPiPlayer::start(String url) {
@@ -81,46 +57,29 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		sp<Bundle> bundle = message->metaData();
 		sp<Buffer> buffer = bundle->getObject<Buffer>("Buffer");
 		mAudioBuffers->push_back(buffer);
-		//static int count = 0;
-		//if (count++ % 10 == 0) {
-		//  printf("A: %d E: %d F: %d\n", mAudioAccessUnits->size(), mEmptyOmxInputBuffers->size(), mFilledOmxInputBuffers->size());
-		//}
-		List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
-		uint32_t totalSize = 0;
-		while (itr != mAudioBuffers->end()) {
-			totalSize += (*itr)->size();
-			++itr;
-		}
 
-		static bool first = true;
-		if (first) {
-			first = false;
-			if (totalSize >= 2 * 2*NUM_AUDIO_FRAMES) {
-				onFillInputBuffers();
+		if (mFirstAudioPacket) {
+			if (onFillAndPlayAudioBuffers(2 * OMX_AUDIO_BUFFER_SIZE)) {
+				mFirstAudioPacket = false;
 			}
 		} else {
-			if (totalSize >= 2*NUM_AUDIO_FRAMES) {
-				onFillInputBuffers();
-			}
+			onFillAndPlayAudioBuffers(OMX_AUDIO_BUFFER_SIZE);
 		}
 		break;
 	}
 	case NOTIFY_PLAY_AUDIO_BUFFER: {
-	  onPlayAudioBuffer();
+		onPlayAudioBuffers();
 		break;
 	}
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
 		sp<Bundle> bundle = message->metaData();
 		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
 		mVideoBuffers->push_back(accessUnit);
-		obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
+		onPlayVideoBuffers();
 		break;
 	}
 	case NOTIFY_PLAY_VIDEO_BUFFER: {
-		if (!mVideoBuffers->empty()) {
-			onPlayVideoBuffer(*mVideoBuffers->begin());
-			mVideoBuffers->erase(mVideoBuffers->begin());
-		}
+		onPlayVideoBuffers();
 		break;
 	}
 	case STOP_MEDIA_SOURCE_DONE: {
@@ -133,10 +92,10 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 //		finalizeOMXVideo();
 		break;
 	}
-	case NOTIFY_EMPTY_OMX_BUFFER: {
+	case NOTIFY_OMX_EMPTY_BUFFER_DONE: {
 		OMX_BUFFERHEADERTYPE* omxMessage = static_cast<OMX_BUFFERHEADERTYPE*>(message->obj);
-		mEmptyOmxInputBuffers->push_back(omxMessage);
-		onFillInputBuffers();
+		mOmxAudioEmptyBuffers->push_back(omxMessage);
+		onFillAndPlayAudioBuffers(OMX_AUDIO_BUFFER_SIZE);
 		break;
 	}
 	}
@@ -158,20 +117,30 @@ void RPiPlayer::stopMediaSource() {
 	message->sendToTarget();
 }
 
-void RPiPlayer::onFillInputBuffers() {
-	while (!mEmptyOmxInputBuffers->empty()) {
-		OMX_BUFFERHEADERTYPE* omxBuffer = *mEmptyOmxInputBuffers->begin();
-		mEmptyOmxInputBuffers->erase(mEmptyOmxInputBuffers->begin());
+bool RPiPlayer::onFillAndPlayAudioBuffers(size_t minSize) {
+	uint32_t totalBufferSize = 0;
+	List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
+	while (itr != mAudioBuffers->end()) {
+		totalBufferSize += (*itr)->size();
+		++itr;
+	}
+	if (totalBufferSize < minSize) {
+		return false;
+	}
+
+	while (!mOmxAudioEmptyBuffers->empty()) {
+		OMX_BUFFERHEADERTYPE* omxBuffer = *mOmxAudioEmptyBuffers->begin();
+		mOmxAudioEmptyBuffers->erase(mOmxAudioEmptyBuffers->begin());
 
 		List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
-		uint32_t totalSize = 0;
 		unsigned char* pBuffer = omxBuffer->pBuffer;
+		totalBufferSize = 0;
 		uint32_t offset = 0;
-		while (itr != mAudioBuffers->end() && totalSize < 2*NUM_AUDIO_FRAMES) {
-			size_t size = (*itr)->size() > (2*NUM_AUDIO_FRAMES - offset) ? (2*NUM_AUDIO_FRAMES - offset) : (*itr)->size();
+		while (itr != mAudioBuffers->end() && totalBufferSize < OMX_AUDIO_BUFFER_SIZE) {
+			size_t size = (*itr)->size() > (OMX_AUDIO_BUFFER_SIZE - offset) ? (OMX_AUDIO_BUFFER_SIZE - offset) : (*itr)->size();
 			memcpy(pBuffer + offset, (*itr)->data(), size);
 			offset += size;
-			totalSize += size;
+			totalBufferSize += size;
 
 			if (size == (*itr)->size()) {
 				mAudioBuffers->erase(mAudioBuffers->begin());
@@ -183,93 +152,93 @@ void RPiPlayer::onFillInputBuffers() {
 		}
 
 		omxBuffer->nOffset = 0;
-		omxBuffer->nFilledLen = totalSize;
+		omxBuffer->nFilledLen = totalBufferSize;
 
-		mFilledOmxInputBuffers->push_back(omxBuffer);
-		onPlayAudioBuffer();
+		mOmxAudioInputBuffers->push_back(omxBuffer);
+		onPlayAudioBuffers();
 
 		itr = mAudioBuffers->begin();
-		totalSize = 0;
+		totalBufferSize = 0;
 		while (itr != mAudioBuffers->end()) {
-			totalSize += (*itr)->size();
+			totalBufferSize += (*itr)->size();
 			++itr;
 		}
-		if (totalSize < 2*NUM_AUDIO_FRAMES) {
+		if (totalBufferSize < OMX_AUDIO_BUFFER_SIZE) {
 			break;
 		}
 	}
+
+	return true;
 }
 
-void RPiPlayer::onPlayAudioBuffer() {
-  List< OMX_BUFFERHEADERTYPE* >::iterator itr = mFilledOmxInputBuffers->begin();
-  while (itr != mFilledOmxInputBuffers->end()) {
-	OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
-	itr = mFilledOmxInputBuffers->erase(itr);
-
-	OMX_ERRORTYPE result = OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer);
-	if (result != OMX_ErrorNone) {
-	  printf("OMX_EmptyThisBuffer failed: %d\n", result);
-	  return;
+void RPiPlayer::onPlayAudioBuffers() {
+	List<OMX_BUFFERHEADERTYPE*>::iterator itr = mOmxAudioInputBuffers->begin();
+	while (itr != mOmxAudioInputBuffers->end()) {
+		OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
+		itr = mOmxAudioInputBuffers->erase(itr);
+		OMX_ERRORTYPE result = OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer);
+		assert(result == OMX_ErrorNone);
 	}
-  }
 }
 
-void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
+void RPiPlayer::onPlayVideoBuffers() {
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	size_t omxBufferFillLevel;
-	size_t offset = 0;
-	int blockingMode = 0;
 
-	while (offset < accessUnit->size()) {
-		if ((omxBuffer = ilclient_get_input_buffer(mVideoDecoder, 130, blockingMode)) != NULL) {
-			unsigned char* pBuffer = omxBuffer->pBuffer;
-
-			size_t size = ((accessUnit->size() - offset) > omxBuffer->nAllocLen) ? omxBuffer->nAllocLen : (accessUnit->size() - offset);
-			memcpy(pBuffer, accessUnit->data() + offset, size);
-			omxBufferFillLevel = size;
-			offset += size;
-
-			if (!mPortSettingsChanged  &&
-					((omxBufferFillLevel > 0 && ilclient_remove_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-					 (omxBufferFillLevel == 0 && ilclient_wait_for_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
-							 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
-				if (ilclient_setup_tunnel(mTunnel, 0, 0) != 0) {
-					return;
-				}
-
-				ilclient_change_component_state(mVideoScheduler, OMX_StateExecuting);
-
-				if (ilclient_setup_tunnel(mTunnel + 1, 0, 1000) != 0) {
-					return;
-				}
-
-				ilclient_change_component_state(mVideoRenderer, OMX_StateExecuting);
-
-				mPortSettingsChanged = true;
-			}
-
-			if (omxBufferFillLevel == 0) {
-				return;
-			}
-
-			omxBuffer->nOffset = 0;
-			omxBuffer->nFilledLen = omxBufferFillLevel;
-			omxBufferFillLevel = 0;
-
-			if (mFirstPacketVideo) {
-				omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
-				mFirstPacketVideo = false;
-			} else {
-				omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
-			}
-
-			if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mVideoDecoder), omxBuffer) != OMX_ErrorNone) {
-				return;
-			}
-
-			blockingMode = 1;
-		} else {
+	while (!mVideoBuffers->empty()) {
+		omxBuffer = ilclient_get_input_buffer(mVideoDecoder, 130, 0);
+		if (omxBuffer == NULL) {
 			break;
+		}
+		sp<Buffer> accessUnit = *mVideoBuffers->begin();
+		unsigned char* pBuffer = omxBuffer->pBuffer;
+
+		size_t size = accessUnit->size() > omxBuffer->nAllocLen ? omxBuffer->nAllocLen : accessUnit->size();
+		memcpy(pBuffer, accessUnit->data(), size);
+		omxBufferFillLevel = size;
+
+		if (size == accessUnit->size()) {
+			mVideoBuffers->erase(mVideoBuffers->begin());
+		} else {
+			accessUnit->setRange(size, accessUnit->size() - size);
+		}
+
+		if (!mPortSettingsChanged  &&
+				((omxBufferFillLevel > 0 && ilclient_remove_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+				 (omxBufferFillLevel == 0 && ilclient_wait_for_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+						 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
+			if (ilclient_setup_tunnel(mTunnel, 0, 0) != 0) {
+				return;
+			}
+
+			ilclient_change_component_state(mVideoScheduler, OMX_StateExecuting);
+
+			if (ilclient_setup_tunnel(mTunnel + 1, 0, 1000) != 0) {
+				return;
+			}
+
+			ilclient_change_component_state(mVideoRenderer, OMX_StateExecuting);
+
+			mPortSettingsChanged = true;
+		}
+
+		if (omxBufferFillLevel == 0) {
+			return;
+		}
+
+		omxBuffer->nOffset = 0;
+		omxBuffer->nFilledLen = omxBufferFillLevel;
+		omxBufferFillLevel = 0;
+
+		if (mFirstVideoPacket) {
+			omxBuffer->nFlags = OMX_BUFFERFLAG_STARTTIME;
+			mFirstVideoPacket = false;
+		} else {
+			omxBuffer->nFlags = OMX_BUFFERFLAG_TIME_UNKNOWN;
+		}
+
+		if (OMX_EmptyThisBuffer(ILC_GET_HANDLE(mVideoDecoder), omxBuffer) != OMX_ErrorNone) {
+			assert(false);
 		}
 	}
 }
@@ -277,11 +246,11 @@ void RPiPlayer::onPlayVideoBuffer(const sp<Buffer>& accessUnit) {
 void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 	RPiPlayer* self = (RPiPlayer*) args;
 	if (component == self->mAudioRenderer) {
-		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(self->mAudioRenderer, 100, 1);
-		assert(omxBuffer);
-		sp<Message> m = self->obtainMessage(NOTIFY_EMPTY_OMX_BUFFER);
-		m->obj = omxBuffer;
-		m->sendToTarget();
+		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(self->mAudioRenderer, 100, 0);
+		assert(omxBuffer != NULL);
+		sp<Message> msg = self->obtainMessage(NOTIFY_OMX_EMPTY_BUFFER_DONE);
+		msg->obj = omxBuffer;
+		msg->sendToTarget();
 	} else if (component == self->mVideoDecoder) {
 		self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 	} else {
@@ -290,12 +259,6 @@ void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 }
 
 int RPiPlayer::initOMXAudio() {
-	const uint32_t sampleRate = SAMPLE_RATE;
-	const uint32_t numChannels = NUMBER_CHANNELS;
-	const uint32_t bitsPerSample = NUMBER_BITS_PER_SAMPLE;
-	const uint32_t numOmxBuffers = NUMBER_OMX_BUFFERS;
-	const uint32_t bufferSize = (NUM_AUDIO_FRAMES * numChannels * bitsPerSample) >> 3;
-
 	memset(mAudioComponentList, 0, sizeof(mAudioComponentList));
 
 	if ((mAudioClient = ilclient_init()) == NULL) {
@@ -316,9 +279,9 @@ int RPiPlayer::initOMXAudio() {
 	result = OMX_GetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
 	assert(result == OMX_ErrorNone);
 
-	// Buffers must be 16 byte aligned for VCHI
-	portDefinitions.nBufferSize = (bufferSize + 15) & ~15;
-	portDefinitions.nBufferCountActual = numOmxBuffers;
+	// Buffer sizes must be 16 byte aligned for VCHI
+	portDefinitions.nBufferSize = (OMX_AUDIO_BUFFER_SIZE + 15) & ~15;
+	portDefinitions.nBufferCountActual = NUM_OMX_AUDIO_BUFFERS;
 
 	result = OMX_SetParameter(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexParamPortDefinition, &portDefinitions);
 	assert(result == OMX_ErrorNone);
@@ -328,17 +291,27 @@ int RPiPlayer::initOMXAudio() {
 	pcmParams.nSize = sizeof(OMX_AUDIO_PARAM_PCMMODETYPE);
 	pcmParams.nVersion.nVersion = OMX_VERSION;
 	pcmParams.nPortIndex = 100;
-	pcmParams.nChannels = numChannels;
+	pcmParams.nChannels = NUM_CHANNELS;
 	pcmParams.eNumData = OMX_NumericalDataSigned;
 	pcmParams.eEndian = OMX_EndianLittle;
-	pcmParams.nSamplingRate = sampleRate;
+	pcmParams.nSamplingRate = SAMPLE_RATE;
 	pcmParams.bInterleaved = OMX_TRUE;
-	pcmParams.nBitPerSample = bitsPerSample;
+	pcmParams.nBitPerSample = BITS_PER_SAMPLE;
 	pcmParams.ePCMMode = OMX_AUDIO_PCMModeLinear;
 
-	switch(numChannels) {
+	switch(NUM_CHANNELS) {
 	case 1:
 		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelCF;
+		break;
+	case 2:
+		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
+		pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
+		break;
+	case 4:
+		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
+		pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
+		pcmParams.eChannelMapping[2] = OMX_AUDIO_ChannelLR;
+		pcmParams.eChannelMapping[3] = OMX_AUDIO_ChannelRR;
 		break;
 	case 8:
 		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
@@ -349,16 +322,6 @@ int RPiPlayer::initOMXAudio() {
 		pcmParams.eChannelMapping[5] = OMX_AUDIO_ChannelRR;
 		pcmParams.eChannelMapping[6] = OMX_AUDIO_ChannelLS;
 		pcmParams.eChannelMapping[7] = OMX_AUDIO_ChannelRS;
-		break;
-	case 4:
-		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
-		pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
-		pcmParams.eChannelMapping[2] = OMX_AUDIO_ChannelLR;
-		pcmParams.eChannelMapping[3] = OMX_AUDIO_ChannelRR;
-		break;
-	case 2:
-		pcmParams.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
-		pcmParams.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
 		break;
 	}
 
@@ -378,9 +341,9 @@ int RPiPlayer::initOMXAudio() {
 
 	OMX_BUFFERHEADERTYPE* omxBuffer;
 	while ((omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, 0)) != NULL) {
-		mEmptyOmxInputBuffers->push_back(omxBuffer);
+		mOmxAudioEmptyBuffers->push_back(omxBuffer);
 	}
-	assert(mEmptyOmxInputBuffers->size() == numOmxBuffers);
+	assert(mOmxAudioEmptyBuffers->size() == NUM_OMX_AUDIO_BUFFERS);
 	return 0;
 }
 
@@ -499,4 +462,18 @@ void RPiPlayer::finalizeOMXVideo() {
 	ilclient_cleanup_components(mVideoComponentList);
 
 	ilclient_destroy(mVideoClient);
+}
+
+uint32_t RPiPlayer::numOmxOwnedAudioSamples() {
+   OMX_PARAM_U32TYPE param;
+   OMX_ERRORTYPE error;
+
+   memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
+   param.nSize = sizeof(OMX_PARAM_U32TYPE);
+   param.nVersion.nVersion = OMX_VERSION;
+   param.nPortIndex = 100;
+   error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
+   assert(error == OMX_ErrorNone);
+
+   return param.nU32;
 }

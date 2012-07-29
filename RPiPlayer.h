@@ -25,7 +25,7 @@ public:
 	static const uint32_t NOTIFY_PLAY_AUDIO_BUFFER = 3;
 	static const uint32_t NOTIFY_PLAY_VIDEO_BUFFER = 4;
 	static const uint32_t STOP_MEDIA_SOURCE_DONE = 5;
-	static const uint32_t NOTIFY_EMPTY_OMX_BUFFER = 8;
+	static const uint32_t NOTIFY_OMX_EMPTY_BUFFER_DONE = 6;
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
@@ -42,21 +42,29 @@ private:
 	void finalizeOMXAudio();
 	int initOMXVideo();
 	void finalizeOMXVideo();
-	void onPlayAudioBuffer();
-	void onFillInputBuffers();
-	void onPlayVideoBuffer(const sp<mindroid::Buffer>& buffer);
+	void onPlayAudioBuffers();
+	bool onFillAndPlayAudioBuffers(size_t minSize);
+	void onPlayVideoBuffers();
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
+	uint32_t numOmxOwnedAudioSamples();
 
 	sp< mindroid::LooperThread<NetHandler> > mNetLooper;
 	sp< mindroid::List< sp<mindroid::Buffer> > > mAudioBuffers;
 	sp< mindroid::List< sp<mindroid::Buffer> > > mVideoBuffers;
 
 	// Audio
+	static const uint32_t SAMPLE_RATE = 43932; // Hz, should be 44100Hz but the RPi hardware is too fast
+	static const uint32_t NUM_CHANNELS = 2;
+	static const uint32_t BITS_PER_SAMPLE = 16;
+	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 4;
+	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 65536;
 	ILCLIENT_T* mAudioClient;
 	COMPONENT_T* mAudioRenderer;
 	COMPONENT_T* mAudioComponentList[2];
 	OMX_BUFFERHEADERTYPE* mAudioBuffer;
-	bool mFirstPacketAudio;
+	bool mFirstAudioPacket;
+	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mOmxAudioInputBuffers;
+	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mOmxAudioEmptyBuffers;
 
 	// Video
 	ILCLIENT_T* mVideoClient;
@@ -67,12 +75,7 @@ private:
 	COMPONENT_T* mVideoRenderer;
 	COMPONENT_T* mClock;
 	bool mPortSettingsChanged;
-	bool mFirstPacketVideo;
-
-	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mFilledOmxInputBuffers;
-	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mEmptyOmxInputBuffers;
-	uint32_t getSamplesInOmx();
-
+	bool mFirstVideoPacket;
 };
 
 #endif /* RPIPLAYER_H_ */
