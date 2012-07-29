@@ -107,6 +107,8 @@ void AvcMediaAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	sp<Message> msg = mNotifyAccessUnit->dup();
 	sp<Bundle> bundle = msg->metaData();
 	bundle->putObject("Access-Unit", accessUnit);
+	uint32_t rtpTime = nalUnit->metaData()->getUInt32("RTP-Time", 0);
+	bundle->putUInt32("RTP-Time", rtpTime);
 	msg->sendToTarget();
 }
 
@@ -195,6 +197,7 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	offset++;
 
 	List< sp<Buffer> >::iterator itr = mQueue->begin();
+	uint32_t rtpTime = (*itr)->metaData()->getUInt32("RTP-Time", 0);
 	for (size_t i = 0; i < fuNalUnitCount; i++) {
 		const sp<Buffer>& curBuffer = *itr;
 		memcpy(accessUnit->data() + offset, curBuffer->data() + 2, curBuffer->size() - 2);
@@ -206,6 +209,7 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	sp<Message> msg = mNotifyAccessUnit->dup();
 	sp<Bundle> bundle = msg->metaData();
 	bundle->putObject("Access-Unit", accessUnit);
+	bundle->putUInt32("RTP-Time", rtpTime);
 	msg->sendToTarget();
 
 	return OK;
