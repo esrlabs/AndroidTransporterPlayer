@@ -55,13 +55,15 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case STOP_MEDIA_SOURCE: {
-		mRtspMediaSource->stop();
+		sp<Bundle> bundle = message->metaData();
+		sp<Message> reply = bundle->getObject<Message>("Reply");
+		mRtspMediaSource->stop(reply);
+		if (mRtpVideoSource != NULL) {
+			mRtpAudioSource->stop();
+		}
 		if (mRtpVideoSource != NULL) {
 			mRtpVideoSource->stop();
 		}
-		sp<Bundle> bundle = message->metaData();
-		sp<Message> reply = bundle->getObject<Message>("Reply");
-		reply->sendToTarget();
 		break;
 	}
 	}

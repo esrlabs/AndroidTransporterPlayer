@@ -11,7 +11,6 @@ sp<RPiPlayer> rpiPlayer;
 void shutdownHook(int signal) {
 	if (signal == SIGINT) {
 		rpiPlayer->stop();
-		// TODO: Wait for RPiPlayer to exit
 	}
 }
 
@@ -22,7 +21,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-//	signal(SIGINT, shutdownHook);
+	signal(SIGINT, shutdownHook);
 
 	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
 	Looper::prepare();

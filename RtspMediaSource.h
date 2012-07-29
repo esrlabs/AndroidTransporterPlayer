@@ -26,12 +26,13 @@ public:
 	static const uint32_t PLAY_AUDIO_TRACK = 4;
 	static const uint32_t SETUP_VIDEO_TRACK = 5;
 	static const uint32_t PLAY_VIDEO_TRACK = 6;
+	static const uint32_t TEARDOWN_MEDIA_SOURCE = 7;
 
 	RtspMediaSource(const sp<mindroid::Handler>& netHandler);
 	virtual ~RtspMediaSource();
 
 	bool start(const mindroid::String& url);
-	void stop();
+	void stop(const sp<mindroid::Message>& reply);
 
 	virtual void handleMessage(const sp<mindroid::Message>& message);
 
@@ -58,6 +59,7 @@ private:
 	void playAudioTrack();
 	void setupVideoTrack(uint16_t port);
 	void playVideoTrack();
+	void teardownMediaSource(const sp<mindroid::Message>& reply);
 	void setPendingRequest(uint32_t id, const sp<mindroid::Message>& message);
 	sp<mindroid::Message> getPendingRequest(uint32_t id);
 	sp<mindroid::Message> removePendingRequest(uint32_t id);
