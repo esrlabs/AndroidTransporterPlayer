@@ -10,44 +10,13 @@ using namespace mindroid;
 
 AvcMediaAssembler::AvcMediaAssembler(sp< List< sp<Buffer> > > queue, const sp<Message>& notifyAccessUnit) :
 		mQueue(queue),
-		mNotifyAccessUnit(notifyAccessUnit),
-		mSeqNumber(0),
-		mInitSeqNumber(true),
-		mFirstSeqNumberFailureTime(0) {
+		mNotifyAccessUnit(notifyAccessUnit) {
 }
 
 AvcMediaAssembler::~AvcMediaAssembler() {
 }
 
-void AvcMediaAssembler::processMediaQueue() {
-    Status status;
-
-    while (true) {
-        status = assembleNalUnits();
-
-        if (status == OK) {
-        	mFirstSeqNumberFailureTime = 0;
-			break;
-		} else if (status == SEQ_NUMBER_FAILURE) {
-            if (mFirstSeqNumberFailureTime != 0) {
-                if (Clock::monotonicTime() - mFirstSeqNumberFailureTime > TIME_PERIOD_20MS) {
-                	mFirstSeqNumberFailureTime = 0;
-                	// We lost that packet. Empty the NAL unit queue.
-                	sp<Buffer> buffer = *mQueue->begin();
-                	mSeqNumber = buffer->getId();
-                    continue;
-                }
-            } else {
-            	mFirstSeqNumberFailureTime = Clock::monotonicTime();
-            }
-            break;
-        } else {
-        	mFirstSeqNumberFailureTime = 0;
-        }
-    }
-}
-
-AvcMediaAssembler::Status AvcMediaAssembler::assembleNalUnits() {
+MediaAssembler::Status AvcMediaAssembler::assembleMediaData() {
 	if (mQueue->empty()) {
 		return OK;
 	}
@@ -222,4 +191,8 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	msg->sendToTarget();
 
 	return OK;
+}
+
+uint32_t AvcMediaAssembler::getNextSeqNum() const {
+	return (*mQueue->begin())->getId();
 }

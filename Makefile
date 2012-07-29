@@ -24,6 +24,7 @@ SRCS = RtspSocket.cpp \
 	RPiPlayer.cpp \
 	RtspMediaSource.cpp \
 	RtpMediaSource.cpp \
+	MediaAssembler.cpp \
 	AvcMediaAssembler.cpp \
 	PcmMediaAssembler.cpp \
 	NetHandler.cpp \

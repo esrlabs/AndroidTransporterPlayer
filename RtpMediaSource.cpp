@@ -42,25 +42,25 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
             }
             break;
         }
-        case NOTIFY_RTCP_PACKET: {
-            sp<Bundle> bundle = message->metaData();
-            sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
-            sp<Rtcp::SenderReport> senderReport = Rtcp::parseSenderReport(buffer);
-            if(senderReport.getPointer()) {
-                printf("packetCount:%d, version:%d, padding:%d, rrcount:%d, packetType:%d, length:%d, ssrc:%d, ntpTimestamp:%d, rtpTimestamp:%d, senderPacketCount:%d, senderOctetCount:%d, senderPacketCount:%d \n",
-                            senderReport->version,
-                            senderReport->padding,
-                            senderReport->rrcount,
-                            senderReport->packetType,
-                            senderReport->length,
-                            senderReport->ssrc,
-                            senderReport->ntpTimestamp,
-                            senderReport->rtpTimestamp,
-                            senderReport->senderPacketCount,
-                            senderReport->senderOctetCount);
-            }
-            break;
-        }
+//        case NOTIFY_RTCP_PACKET: {
+//            sp<Bundle> bundle = message->metaData();
+//            sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
+//            sp<Rtcp::SenderReport> senderReport = Rtcp::parseSenderReport(buffer);
+//            if(senderReport.getPointer()) {
+//                printf("packetCount:%d, version:%d, padding:%d, rrcount:%d, packetType:%d, length:%d, ssrc:%d, ntpTimestamp:%d, rtpTimestamp:%d, senderPacketCount:%d, senderOctetCount:%d, senderPacketCount:%d \n",
+//                            senderReport->version,
+//                            senderReport->padding,
+//                            senderReport->rrcount,
+//                            senderReport->packetType,
+//                            senderReport->length,
+//                            senderReport->ssrc,
+//                            senderReport->ntpTimestamp,
+//                            senderReport->rtpTimestamp,
+//                            senderReport->senderPacketCount,
+//                            senderReport->senderOctetCount);
+//            }
+//            break;
+//        }
     }
 }
 
@@ -127,15 +127,15 @@ void RtpMediaSource::NetReceiver::run() {
 					msg->sendToTarget();
 				}
 			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
-				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
-				ssize_t size = mRtcpSocket->recv(buffer->data(), buffer->capacity());
-				if (size > 0) {
-					buffer->setRange(0, size);
-					sp<Message> msg = mNotifyRtcpPacket->dup();
-					sp<Bundle> bundle = msg->metaData();
-					bundle->putObject("RTCP-Packet", buffer);
-					msg->sendToTarget();
-				}
+//				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
+//				ssize_t size = mRtcpSocket->recv(buffer->data(), buffer->capacity());
+//				if (size > 0) {
+//					buffer->setRange(0, size);
+//					sp<Message> msg = mNotifyRtcpPacket->dup();
+//					sp<Bundle> bundle = msg->metaData();
+//					bundle->putObject("RTCP-Packet", buffer);
+//					msg->sendToTarget();
+//				}
 			}
 		}
 	}

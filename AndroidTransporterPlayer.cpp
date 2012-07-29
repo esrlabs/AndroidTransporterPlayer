@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	signal(SIGINT, shutdownHook);
+//	signal(SIGINT, shutdownHook);
 
 	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
 	Looper::prepare();

@@ -44,12 +44,12 @@ private:
 	void finalizeOMXVideo();
 	void onPlayAudioBuffer();
 	void onFillInputBuffers();
-	void onPlayVideoBuffer(const sp<mindroid::Buffer>& accessUnit);
+	void onPlayVideoBuffer(const sp<mindroid::Buffer>& buffer);
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 
 	sp< mindroid::LooperThread<NetHandler> > mNetLooper;
-	sp< mindroid::List< sp<mindroid::Buffer> > > mAudioAccessUnits;
-	sp< mindroid::List< sp<mindroid::Buffer> > > mVideoAccessUnits;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mAudioBuffers;
+	sp< mindroid::List< sp<mindroid::Buffer> > > mVideoBuffers;
 
 	// Audio
 	ILCLIENT_T* mAudioClient;

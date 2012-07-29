@@ -15,26 +15,17 @@ class PcmMediaAssembler :
 	public MediaAssembler
 {
 public:
-	PcmMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, const sp<mindroid::Message>& notifyAccessUnit);
+	PcmMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, const sp<mindroid::Message>& notifyBuffer);
 	virtual ~PcmMediaAssembler();
 
-	virtual void processMediaQueue();
+	virtual Status assembleMediaData();
+	virtual uint32_t getNextSeqNum() const;
 
 private:
-	void newAccessUnit();
-	void appendToAccessUnit(sp<mindroid::Buffer>& buffer);
-	void accessUnitFinished();
-	bool sequenceStarted();
+	void swapPcmDataEndianess(const sp<mindroid::Buffer>& buffer);
 
 	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
-	sp<mindroid::Message> mNotifyAccessUnit;
-	sp<mindroid::Buffer> mAccessUnit;
-	int mAccessUnitOffset;
-
-	static const uint32_t ILLEGAL_SEQUENCE_NUMBER = 1 << 17;
-	bool mStartStream;
-	size_t mLastRtpPacketSize;
-	uint32_t mLastSequence;
+	sp<mindroid::Message> mNotifyBuffer;
 };
 
 #endif /* PCMMEDIAASSEMBLER_H_ */

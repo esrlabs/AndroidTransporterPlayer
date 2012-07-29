@@ -29,8 +29,8 @@ RPiPlayer::RPiPlayer() :
 		mPortSettingsChanged(false),
 		mFirstPacketVideo(true) {
   // TODO initializer list
-	mAudioAccessUnits = new List< sp<Buffer> >();
-	mVideoAccessUnits = new List< sp<Buffer> >();
+	mAudioBuffers = new List< sp<Buffer> >();
+	mVideoBuffers = new List< sp<Buffer> >();
 	mFilledOmxInputBuffers = new List< OMX_BUFFERHEADERTYPE* >();
 	mEmptyOmxInputBuffers = new List< OMX_BUFFERHEADERTYPE* >();
 	mNetLooper =  new LooperThread<NetHandler>();
@@ -78,18 +78,31 @@ void RPiPlayer::stop() {
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case NOTIFY_QUEUE_AUDIO_BUFFER: {
-		sp<Buffer> accessUnit = *((sp<Buffer>*) message->obj);
-		delete (sp<Buffer>*) message->obj;
-		mAudioAccessUnits->push_back(accessUnit);
+		sp<Bundle> bundle = message->metaData();
+		sp<Buffer> buffer = bundle->getObject<Buffer>("Buffer");
+		mAudioBuffers->push_back(buffer);
 		//static int count = 0;
 		//if (count++ % 10 == 0) {
 		//  printf("A: %d E: %d F: %d\n", mAudioAccessUnits->size(), mEmptyOmxInputBuffers->size(), mFilledOmxInputBuffers->size());
 		//}
-			static bool first = true;
-			if ((mAudioAccessUnits->size() >= NUMBER_ACCESS_UNITS) || !first) {
-			  onFillInputBuffers();
-			  first = false;
+		List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
+		uint32_t totalSize = 0;
+		while (itr != mAudioBuffers->end()) {
+			totalSize += (*itr)->size();
+			++itr;
+		}
+
+		static bool first = true;
+		if (first) {
+			first = false;
+			if (totalSize >= 2 * 2*NUM_AUDIO_FRAMES) {
+				onFillInputBuffers();
 			}
+		} else {
+			if (totalSize >= 2*NUM_AUDIO_FRAMES) {
+				onFillInputBuffers();
+			}
+		}
 		break;
 	}
 	case NOTIFY_PLAY_AUDIO_BUFFER: {
@@ -99,14 +112,14 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
 		sp<Bundle> bundle = message->metaData();
 		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
-		mVideoAccessUnits->push_back(accessUnit);
+		mVideoBuffers->push_back(accessUnit);
 		obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 		break;
 	}
 	case NOTIFY_PLAY_VIDEO_BUFFER: {
-		if (!mVideoAccessUnits->empty()) {
-			onPlayVideoBuffer(*mVideoAccessUnits->begin());
-			mVideoAccessUnits->erase(mVideoAccessUnits->begin());
+		if (!mVideoBuffers->empty()) {
+			onPlayVideoBuffer(*mVideoBuffers->begin());
+			mVideoBuffers->erase(mVideoBuffers->begin());
 		}
 		break;
 	}
@@ -146,21 +159,44 @@ void RPiPlayer::stopMediaSource() {
 }
 
 void RPiPlayer::onFillInputBuffers() {
-	while (!mAudioAccessUnits->empty() && !mEmptyOmxInputBuffers->empty()) {
+	while (!mEmptyOmxInputBuffers->empty()) {
 		OMX_BUFFERHEADERTYPE* omxBuffer = *mEmptyOmxInputBuffers->begin();
 		mEmptyOmxInputBuffers->erase(mEmptyOmxInputBuffers->begin());
-		sp<Buffer> accessUnit = *mAudioAccessUnits->begin();
-		mAudioAccessUnits->erase(mAudioAccessUnits->begin());
 
+		List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
+		uint32_t totalSize = 0;
 		unsigned char* pBuffer = omxBuffer->pBuffer;
-		size_t size = accessUnit->size();
-		memcpy(pBuffer, accessUnit->data(), size);
+		uint32_t offset = 0;
+		while (itr != mAudioBuffers->end() && totalSize < 2*NUM_AUDIO_FRAMES) {
+			size_t size = (*itr)->size() > (2*NUM_AUDIO_FRAMES - offset) ? (2*NUM_AUDIO_FRAMES - offset) : (*itr)->size();
+			memcpy(pBuffer + offset, (*itr)->data(), size);
+			offset += size;
+			totalSize += size;
+
+			if (size == (*itr)->size()) {
+				mAudioBuffers->erase(mAudioBuffers->begin());
+			} else {
+				(*itr)->setRange(size , (*itr)->size() - size);
+				break;
+			}
+			++itr;
+		}
+
 		omxBuffer->nOffset = 0;
-		omxBuffer->nFilledLen = size;
+		omxBuffer->nFilledLen = totalSize;
 
 		mFilledOmxInputBuffers->push_back(omxBuffer);
 		onPlayAudioBuffer();
-		//		obtainMessage(NOTIFY_INPUT_BUFFER_FILLED)->sendToTarget();
+
+		itr = mAudioBuffers->begin();
+		totalSize = 0;
+		while (itr != mAudioBuffers->end()) {
+			totalSize += (*itr)->size();
+			++itr;
+		}
+		if (totalSize < 2*NUM_AUDIO_FRAMES) {
+			break;
+		}
 	}
 }
 
