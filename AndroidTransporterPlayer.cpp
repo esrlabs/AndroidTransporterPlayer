@@ -1,8 +1,9 @@
-#include <stdio.h>
-#include <signal.h>
+#include "RPiPlayer.h"
 #include <mindroid/os/Looper.h>
 #include <mindroid/lang/String.h>
-#include "RPiPlayer.h"
+#include <stdio.h>
+#include <signal.h>
+#include <sys/resource.h>
 
 using namespace mindroid;
 
@@ -23,7 +24,9 @@ int main(int argc, char** argv)
 
 	signal(SIGINT, shutdownHook);
 
-	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
+	if (setpriority(PRIO_PROCESS, 0, -17) != 0) {
+		printf("Cannot set thread priorities. Please restart with more priviledges.\n");
+	}
 	Looper::prepare();
 	rpiPlayer = new RPiPlayer();
 	rpiPlayer->start(String(argv[1]));

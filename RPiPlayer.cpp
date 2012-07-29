@@ -26,7 +26,6 @@ RPiPlayer::RPiPlayer() :
 	mOmxAudioEmptyBuffers = new List<OMX_BUFFERHEADERTYPE*>();
 	mNetLooper =  new LooperThread<NetHandler>();
 	mNetLooper->start();
-	mNetLooper->setSchedulingParams(SCHED_OTHER, -17);
 }
 
 RPiPlayer::~RPiPlayer() {

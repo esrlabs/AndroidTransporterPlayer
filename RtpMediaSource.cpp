@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/resource.h>
 
 using namespace mindroid;
 using namespace rtcp;
@@ -95,7 +96,7 @@ void RtpMediaSource::NetReceiver::stop() {
 }
 
 void RtpMediaSource::NetReceiver::run() {
-	setSchedulingParams(SCHED_OTHER, -16);
+	setpriority(PRIO_PROCESS, 0, -16);
 
 	while (!isInterrupted()) {
 		fd_set sockets;

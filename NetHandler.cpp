@@ -4,6 +4,7 @@
 #include "PcmMediaAssembler.h"
 #include "AvcMediaAssembler.h"
 #include <stdio.h>
+#include <sys/resource.h>
 
 using namespace mindroid;
 
@@ -16,6 +17,7 @@ NetHandler::~NetHandler() {
 void NetHandler::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case START_MEDIA_SOURCE: {
+		setpriority(PRIO_PROCESS, 0, -17);
 		sp<Bundle> bundle = message->metaData();
 		mPlayer = bundle->getObject<RPiPlayer>("Player");
 		mRtspMediaSource = new RtspMediaSource(this);

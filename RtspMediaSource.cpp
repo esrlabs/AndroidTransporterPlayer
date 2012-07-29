@@ -242,8 +242,6 @@ RtspMediaSource::NetReceiver::NetReceiver(const sp<RtspMediaSource>& mediaSource
 }
 
 void RtspMediaSource::NetReceiver::run() {
-	setSchedulingParams(SCHED_OTHER, -16);
-
 	while (!isInterrupted()) {
 		RtspHeader* rtspHeader = mSocket->readPacketHeader();
 		if (rtspHeader != NULL) {
