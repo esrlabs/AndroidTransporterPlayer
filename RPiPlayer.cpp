@@ -461,15 +461,15 @@ void RPiPlayer::finalizeOMXVideo() {
 }
 
 uint32_t RPiPlayer::numOmxOwnedAudioSamples() {
-   OMX_PARAM_U32TYPE param;
-   OMX_ERRORTYPE error;
+	OMX_PARAM_U32TYPE param;
+	OMX_ERRORTYPE error;
 
-   memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
-   param.nSize = sizeof(OMX_PARAM_U32TYPE);
-   param.nVersion.nVersion = OMX_VERSION;
-   param.nPortIndex = 100;
-   error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
-   assert(error == OMX_ErrorNone);
+	memset(&param, 0, sizeof(OMX_PARAM_U32TYPE));
+	param.nSize = sizeof(OMX_PARAM_U32TYPE);
+	param.nVersion.nVersion = OMX_VERSION;
+	param.nPortIndex = 100;
+	error = OMX_GetConfig(ILC_GET_HANDLE(mAudioRenderer), OMX_IndexConfigAudioRenderingLatency, &param);
+	assert(error == OMX_ErrorNone);
 
-   return param.nU32;
+	return param.nU32;
 }
