@@ -34,7 +34,7 @@ void AvcMediaAssembler::processMediaQueue() {
                 	mFirstSeqNumberFailureTime = 0;
                 	// We lost that packet. Empty the NAL unit queue.
                 	sp<Buffer> buffer = *mQueue->begin();
-                	mSeqNumber = buffer->getMetaData();
+                	mSeqNumber = buffer->getId();
                     continue;
                 }
             } else {
@@ -65,7 +65,7 @@ AvcMediaAssembler::Status AvcMediaAssembler::assembleNalUnits() {
 	if (!mInitSeqNumber) {
 		List< sp<Buffer> >::iterator itr = mQueue->begin();
 		while (itr != mQueue->end()) {
-			if ((uint32_t)(*itr)->getMetaData() > mSeqNumber) {
+			if ((uint32_t)(*itr)->getId() > mSeqNumber) {
 				break;
 			}
 
@@ -78,10 +78,10 @@ AvcMediaAssembler::Status AvcMediaAssembler::assembleNalUnits() {
 	}
 
 	if (mInitSeqNumber) {
-		mSeqNumber = (uint32_t) buffer->getMetaData();
+		mSeqNumber = (uint32_t) buffer->getId();
 		mInitSeqNumber = false;
 	} else {
-		if ((uint32_t)buffer->getMetaData() != mSeqNumber + 1) {
+		if ((uint32_t)buffer->getId() != mSeqNumber + 1) {
 			return SEQ_NUMBER_FAILURE;
 		}
 	}
@@ -118,9 +118,8 @@ void AvcMediaAssembler::processSingleNalUnit(sp<Buffer> nalUnit) {
 	memcpy(accessUnit->data() + offset, nalUnit->data(), nalUnit->size());
 
 	sp<Message> msg = mNotifyAccessUnit->dup();
-	sp<Bundle> bundle = new Bundle();
+	sp<Bundle> bundle = msg->metaData();
 	bundle->putObject("Access-Unit", accessUnit);
-	msg->setData(bundle);
 	msg->sendToTarget();
 }
 
@@ -146,7 +145,7 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	uint32_t nalUnitType = data[1] & 0x1F;
 	uint32_t nri = (data[0] >> 5) & 3;
 
-	uint32_t curSeqNumber = (uint32_t)buffer->getMetaData();
+	uint32_t curSeqNumber = (uint32_t)buffer->getId();
 	bool accessUnitDone = false;
 	size_t accessUnitSize = size - 2;
 	size_t fuNalUnitCount = 1;
@@ -161,7 +160,7 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 			size_t curSize = curBuffer->size();
 
 			curSeqNumber++;
-			if ((uint32_t)curBuffer->getMetaData() != curSeqNumber) {
+			if ((uint32_t)curBuffer->getId() != curSeqNumber) {
 				return SEQ_NUMBER_FAILURE;
 			}
 
@@ -218,9 +217,8 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	accessUnit->setRange(0, accessUnitSize);
 
 	sp<Message> msg = mNotifyAccessUnit->dup();
-	sp<Bundle> bundle = new Bundle();
+	sp<Bundle> bundle = msg->metaData();
 	bundle->putObject("Access-Unit", accessUnit);
-	msg->setData(bundle);
 	msg->sendToTarget();
 
 	return OK;

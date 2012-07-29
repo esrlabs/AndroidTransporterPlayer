@@ -84,8 +84,8 @@ void PcmMediaAssembler::processMediaQueue() {
 
 	uint16_t seqNum = 0;
 	bool mark = false;
-	assert(buffer->mBundle.fillUInt16("seqNum", &seqNum));
-	assert(buffer->mBundle.fillBool("mark", &mark));
+	seqNum = buffer->getId();
+	assert(buffer->metaData()->fillBool("M", mark));
 
 	if (sequenceStarted()) {
 		if (mLastSequence+1 == seqNum) {

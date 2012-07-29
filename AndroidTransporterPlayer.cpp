@@ -6,15 +6,13 @@
 
 using namespace mindroid;
 
-sp<RPiPlayer> rPiPlayer;
+sp<RPiPlayer> rpiPlayer;
 
-void shutdownHook(int s)
-{
-  if (s == SIGINT)
-  {
-    rPiPlayer->stop();
-    exit(1);
-  }
+void shutdownHook(int signal) {
+	if (signal == SIGINT) {
+		rpiPlayer->stop();
+		// TODO: Wait for RPiPlayer to exit
+	}
 }
 
 int main(int argc, char** argv)
@@ -24,12 +22,12 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	Looper::prepare();
-	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
-
 	signal(SIGINT, shutdownHook);
-	rPiPlayer = new RPiPlayer();
-	rPiPlayer->start(String(argv[1]));
+
+	Thread::currentThread()->setSchedulingParams(SCHED_OTHER, -17);
+	Looper::prepare();
+	rpiPlayer = new RPiPlayer();
+	rpiPlayer->start(String(argv[1]));
 	Looper::loop();
 
 	return 0;

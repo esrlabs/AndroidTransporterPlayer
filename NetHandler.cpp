@@ -16,7 +16,7 @@ NetHandler::~NetHandler() {
 void NetHandler::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case START_MEDIA_SOURCE: {
-		sp<Bundle> bundle = message->getData();
+		sp<Bundle> bundle = message->metaData();
 		mPlayer = bundle->getObject<RPiPlayer>("Player");
 		mRtspMediaSource = new RtspMediaSource(this);
 		if (!mRtspMediaSource->start(bundle->getString("Url"))) {
@@ -59,7 +59,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		if (mRtpVideoSource != NULL) {
 			mRtpVideoSource->stop();
 		}
-		sp<Bundle> bundle = message->getData();
+		sp<Bundle> bundle = message->metaData();
 		sp<Message> reply = bundle->getObject<Message>("Reply");
 		reply->sendToTarget();
 		break;

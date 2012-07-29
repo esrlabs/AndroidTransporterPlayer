@@ -97,7 +97,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case NOTIFY_QUEUE_VIDEO_BUFFER: {
-		sp<Bundle> bundle = message->getData();
+		sp<Bundle> bundle = message->metaData();
 		sp<Buffer> accessUnit = bundle->getObject<Buffer>("Access-Unit");
 		mVideoAccessUnits->push_back(accessUnit);
 		obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
@@ -131,19 +131,17 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 
 bool RPiPlayer::startMediaSource(const String& url) {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::START_MEDIA_SOURCE);
-	sp<Bundle> bundle = new Bundle();
+	sp<Bundle> bundle = message->metaData();
 	bundle->putObject("Player", this);
 	bundle->putString("Url", url);
-	message->setData(bundle);
 	message->sendToTarget();
 	return true;
 }
 
 void RPiPlayer::stopMediaSource() {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::STOP_MEDIA_SOURCE);
-	sp<Bundle> bundle = new Bundle();
+	sp<Bundle> bundle = message->metaData();
 	bundle->putObject("Reply", obtainMessage(STOP_MEDIA_SOURCE_DONE));
-	message->setData(bundle);
 	message->sendToTarget();
 }
 

@@ -63,9 +63,9 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case DESCRIBE_MEDIA_SOURCE: {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;
-		sp<Bundle> bundle = message->getData();
 		sp<Buffer> content;
-		if (bundle != NULL) {
+		if (message->hasMetaData()) {
+			sp<Bundle> bundle = message->metaData();
 			content = bundle->getObject<Buffer>("Content");
 		}
 		if ((*rtspHeader)[String("ResultCode")] == "200") {
@@ -241,9 +241,8 @@ void RtspMediaSource::NetReceiver::run() {
 						sp<Buffer> buffer = new Buffer(contentLength);
 						mSocket->readFully(buffer->data(), contentLength);
 						buffer->setRange(0, contentLength);
-						sp<Bundle> bundle = new Bundle();
+						sp<Bundle> bundle = reply->metaData();
 						bundle->putObject("Content", buffer);
-						reply->setData(bundle);
 					}
 				}
 

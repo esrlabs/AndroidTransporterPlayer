@@ -13,8 +13,8 @@ using namespace mindroid;
 using namespace rtcp;
 
 RtpMediaSource::RtpMediaSource(uint16_t port) :
-	mRtpPacketCounter(0),
-	mHighestSeqNumber(0) {
+		mRtpPacketCounter(0),
+		mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
 	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET));
 }
@@ -35,7 +35,7 @@ void RtpMediaSource::stop() {
 void RtpMediaSource::handleMessage(const sp<Message>& message) {
     switch (message->what) {
         case NOTIFY_RTP_PACKET: {
-            sp<Bundle> bundle = message->getData();
+            sp<Bundle> bundle = message->metaData();
             sp<Buffer> buffer = bundle->getObject<Buffer>("RTP-Packet");
             if (parseRtpHeader(buffer) == 0) {
                 processRtpPayload(buffer);
@@ -43,7 +43,7 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
             break;
         }
         case NOTIFY_RTCP_PACKET: {
-            sp<Bundle> bundle = message->getData();
+            sp<Bundle> bundle = message->metaData();
             sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
             sp<Rtcp::SenderReport> senderReport = Rtcp::parseSenderReport(buffer);
             if(senderReport.getPointer()) {
@@ -65,8 +65,8 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
 }
 
 RtpMediaSource::NetReceiver::NetReceiver(uint16_t port, sp<Message> notifyRtpPacket, sp<Message> notifyRtcpPacket) :
-	mNotifyRtpPacket(notifyRtpPacket),
-	mNotifyRtcpPacket(notifyRtcpPacket) {
+		mNotifyRtpPacket(notifyRtpPacket),
+		mNotifyRtcpPacket(notifyRtcpPacket) {
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
@@ -91,6 +91,7 @@ void RtpMediaSource::NetReceiver::stop() {
 	join();
 	// mNotifyRtpPacket holds a (circular) dependency to the RtpMediaSource handler.
 	mNotifyRtpPacket = NULL;
+	mNotifyRtcpPacket = NULL;
 }
 
 void RtpMediaSource::NetReceiver::run() {
@@ -121,9 +122,8 @@ void RtpMediaSource::NetReceiver::run() {
 				if (size > 0) {
 					buffer->setRange(0, size);
 					sp<Message> msg = mNotifyRtpPacket->dup();
-					sp<Bundle> bundle = new Bundle();
+					sp<Bundle> bundle = msg->metaData();
 					bundle->putObject("RTP-Packet", buffer);
-					msg->setData(bundle);
 					msg->sendToTarget();
 				}
 			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
@@ -132,25 +132,12 @@ void RtpMediaSource::NetReceiver::run() {
 				if (size > 0) {
 					buffer->setRange(0, size);
 					sp<Message> msg = mNotifyRtcpPacket->dup();
-					sp<Bundle> bundle = new Bundle();
+					sp<Bundle> bundle = msg->metaData();
 					bundle->putObject("RTCP-Packet", buffer);
-					msg->setData(bundle);
 					msg->sendToTarget();
 				}
 			}
 		}
-		/*
-		  sp<Buffer> buffer(newobtainMessage(NOTIFY_RTP_PACKET) Buffer(MAX_UDP_PACKET_SIZE));
-		  ssize_t size = mRtpSocket->recv(buffer->data(), buffer->capacity());
-		  if (size > 0) {
-		  buffer->setRange(0, size);
-		  sp<Message> msg = mNotifyRtpPacket->dup();
-		  sp<Bundle> bundle = new Bundle();
-		  bundle->putObject("RTP-Packet", buffer);
-		  msg->setData(bundle);
-		  msg->sendToTarget();
-		  }
-		*/
 	}
 }
 
@@ -199,20 +186,21 @@ int RtpMediaSource::parseRtpHeader(const sp<Buffer>& buffer) {
 
 	buffer->setRange(payloadOffset, size - payloadOffset);
 
-	bool markBit = data[1] & MARK_BIT;
 	uint16_t seqNum = data[2] << 8 | data[3];
-	uint32_t timestamp = data[4] << 24 | data[5] << 16 | data[6] << 8 | data[7];
+	uint32_t srcId = data[8] << 24 | data[9] << 16 | data[10] << 8 | data[11];
+	uint32_t rtpTime = data[4] << 24 | data[5] << 16 | data[6] << 8 | data[7];
 
-	buffer->setMetaData(seqNum);
-	buffer->mBundle.putUInt16("seqNum", seqNum);
-	buffer->mBundle.putBool("mark", markBit);
-	buffer->mBundle.putUInt32("timestamp", timestamp);
+	buffer->setId(seqNum);
+	buffer->metaData()->putUInt32("SSRC", srcId);
+	buffer->metaData()->putUInt32("RTP-Time", rtpTime);
+	buffer->metaData()->putUInt32("PT", data[1] & 0x7f);
+	buffer->metaData()->putBool("M", data[1] & MARK_BIT);
 
 	return 0;
 }
 
 void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
-	uint32_t seqNum = (uint32_t)buffer->getMetaData();
+	uint32_t seqNum = (uint32_t)buffer->getId();
 
 	if (mRtpPacketCounter++ == 0) {
 		mHighestSeqNumber = seqNum;
@@ -245,14 +233,14 @@ void RtpMediaSource::processRtpPayload(const sp<Buffer>& buffer) {
 		mHighestSeqNumber = seqNum;
 	}
 
-	buffer->setMetaData(seqNum);
+	buffer->setId(seqNum);
 
 	List< sp<Buffer> >::iterator itr = mQueue->begin();
-	while (itr != mQueue->end() && (uint32_t)(*itr)->getMetaData() < seqNum) {
+	while (itr != mQueue->end() && (uint32_t)(*itr)->getId() < seqNum) {
 		++itr;
 	}
 
-	if (itr != mQueue->end() && (uint32_t)(*itr)->getMetaData() == seqNum) {
+	if (itr != mQueue->end() && (uint32_t)(*itr)->getId() == seqNum) {
 		return;
 	}
 

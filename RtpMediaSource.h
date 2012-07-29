@@ -52,8 +52,8 @@ private:
 	static const uint32_t NOTIFY_RTP_PACKET = 0;
 	static const uint32_t NOTIFY_RTCP_PACKET = 1;
 	static const uint32_t RTP_HEADER_SIZE = 12;
-	static const uint32_t EXT_HEADER_BIT = 1 << 4;
-	static const uint32_t PADDING_BIT = 1 << 5;
+	static const uint8_t EXT_HEADER_BIT = 1 << 4;
+	static const uint8_t PADDING_BIT = 1 << 5;
 	static const uint8_t MARK_BIT = 1 << 7;
 
 	int parseRtpHeader(const sp<mindroid::Buffer>& buffer);
