@@ -1,10 +1,10 @@
 #ifndef RPIPLAYER_H_
 #define RPIPLAYER_H_
 
-#include "mindroid/os/LooperThread.h"
+#include <mindroid/os/LooperThread.h>
+#include <mindroid/lang/String.h>
+#include <mindroid/util/List.h>
 #include "NetHandler.h"
-#include "mindroid/lang/String.h"
-#include "mindroid/util/List.h"
 extern "C" {
 #include "bcm_host.h"
 #include "ilclient.h"
@@ -43,7 +43,7 @@ private:
 	int initOMXVideo();
 	void finalizeOMXVideo();
 	void onPlayAudioBuffers();
-	bool onFillAndPlayAudioBuffers(size_t minSize);
+	void onFillAndPlayAudioBuffers();
 	void onPlayVideoBuffers();
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
 	uint32_t numOmxOwnedAudioSamples();
@@ -57,7 +57,7 @@ private:
 	static const uint32_t NUM_CHANNELS = 2;
 	static const uint32_t BITS_PER_SAMPLE = 16;
 	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 4;
-	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 65536;
+	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 8192; // 4096 samples -> 93ms
 	ILCLIENT_T* mAudioClient;
 	COMPONENT_T* mAudioRenderer;
 	COMPONENT_T* mAudioComponentList[2];

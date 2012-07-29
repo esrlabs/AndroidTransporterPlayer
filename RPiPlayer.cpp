@@ -1,11 +1,10 @@
 #include "RPiPlayer.h"
-#include <errno.h>
 #include <mindroid/os/Bundle.h>
 #include <mindroid/util/Buffer.h>
 #include <mindroid/os/Clock.h>
-
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 
 using namespace mindroid;
 
@@ -57,14 +56,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		sp<Bundle> bundle = message->metaData();
 		sp<Buffer> buffer = bundle->getObject<Buffer>("Buffer");
 		mAudioBuffers->push_back(buffer);
-
-		if (mFirstAudioPacket) {
-			if (onFillAndPlayAudioBuffers(2 * OMX_AUDIO_BUFFER_SIZE)) {
-				mFirstAudioPacket = false;
-			}
-		} else {
-			onFillAndPlayAudioBuffers(OMX_AUDIO_BUFFER_SIZE);
-		}
+		onFillAndPlayAudioBuffers();
 		break;
 	}
 	case NOTIFY_PLAY_AUDIO_BUFFER: {
@@ -93,9 +85,10 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case NOTIFY_OMX_EMPTY_BUFFER_DONE: {
-		OMX_BUFFERHEADERTYPE* omxMessage = static_cast<OMX_BUFFERHEADERTYPE*>(message->obj);
-		mOmxAudioEmptyBuffers->push_back(omxMessage);
-		onFillAndPlayAudioBuffers(OMX_AUDIO_BUFFER_SIZE);
+		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, 0);
+		assert(omxBuffer != NULL);
+		mOmxAudioEmptyBuffers->push_back(omxBuffer);
+		onFillAndPlayAudioBuffers();
 		break;
 	}
 	}
@@ -117,16 +110,24 @@ void RPiPlayer::stopMediaSource() {
 	message->sendToTarget();
 }
 
-bool RPiPlayer::onFillAndPlayAudioBuffers(size_t minSize) {
+void RPiPlayer::onFillAndPlayAudioBuffers() {
 	uint32_t totalBufferSize = 0;
 	List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
 	while (itr != mAudioBuffers->end()) {
 		totalBufferSize += (*itr)->size();
 		++itr;
 	}
-	if (totalBufferSize < minSize) {
-		return false;
+	if (mFirstAudioPacket) {
+		if (totalBufferSize < 2 * OMX_AUDIO_BUFFER_SIZE) {
+			return;
+		}
+		mFirstAudioPacket = false;
 	}
+	if (totalBufferSize < OMX_AUDIO_BUFFER_SIZE) {
+		return;
+	}
+
+	assert(!mOmxAudioEmptyBuffers->empty());
 
 	while (!mOmxAudioEmptyBuffers->empty()) {
 		OMX_BUFFERHEADERTYPE* omxBuffer = *mOmxAudioEmptyBuffers->begin();
@@ -167,11 +168,11 @@ bool RPiPlayer::onFillAndPlayAudioBuffers(size_t minSize) {
 			break;
 		}
 	}
-
-	return true;
 }
 
 void RPiPlayer::onPlayAudioBuffers() {
+//	printf("numOmxOwnedAudioSamples: %d samples (%dms)\n", numOmxOwnedAudioSamples(), numOmxOwnedAudioSamples() / (SAMPLE_RATE / 1000));
+
 	List<OMX_BUFFERHEADERTYPE*>::iterator itr = mOmxAudioInputBuffers->begin();
 	while (itr != mOmxAudioInputBuffers->end()) {
 		OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
@@ -246,11 +247,7 @@ void RPiPlayer::onPlayVideoBuffers() {
 void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 	RPiPlayer* self = (RPiPlayer*) args;
 	if (component == self->mAudioRenderer) {
-		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(self->mAudioRenderer, 100, 0);
-		assert(omxBuffer != NULL);
-		sp<Message> msg = self->obtainMessage(NOTIFY_OMX_EMPTY_BUFFER_DONE);
-		msg->obj = omxBuffer;
-		msg->sendToTarget();
+		self->obtainMessage(NOTIFY_OMX_EMPTY_BUFFER_DONE)->sendToTarget();
 	} else if (component == self->mVideoDecoder) {
 		self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 	} else {
