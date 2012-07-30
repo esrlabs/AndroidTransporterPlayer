@@ -258,31 +258,37 @@ RtspMediaSource::NetReceiver::NetReceiver(const sp<RtspMediaSource>& mediaSource
 }
 
 void RtspMediaSource::NetReceiver::run() {
+	RtspHeader* rtspHeader;
 	while (!isInterrupted()) {
-		RtspHeader* rtspHeader = mSocket->readPacketHeader();
-		if (rtspHeader != NULL) {
-			uint32_t seqNum = atoi((*rtspHeader)[String("CSeq").toLowerCase()]);
-			sp<Message> reply = mMediaSource->removePendingRequest(seqNum);
-			if ((*rtspHeader)[String("ResultCode")] == "200") {
-				reply->obj = rtspHeader;
+		bool result = mSocket->readPacketHeader(rtspHeader);
+		if (result) {
+			if (rtspHeader != NULL) {
+				uint32_t seqNum = atoi((*rtspHeader)[String("CSeq").toLowerCase()]);
+				sp<Message> reply = mMediaSource->removePendingRequest(seqNum);
+				if ((*rtspHeader)[String("ResultCode")] == "200") {
+					reply->obj = rtspHeader;
 
-				String strContentLength = (*rtspHeader)[String("Content-Length").toLowerCase()];
-				if (strContentLength != NULL) {
-					size_t contentLength = atoi(strContentLength.c_str());
-					if (contentLength > 0) {
-						sp<Buffer> buffer = new Buffer(contentLength);
-						mSocket->readFully(buffer->data(), contentLength);
-						buffer->setRange(0, contentLength);
-						sp<Bundle> bundle = reply->metaData();
-						bundle->putObject("Content", buffer);
+					String strContentLength = (*rtspHeader)[String("Content-Length").toLowerCase()];
+					if (strContentLength != NULL) {
+						size_t contentLength = atoi(strContentLength.c_str());
+						if (contentLength > 0) {
+							sp<Buffer> buffer = new Buffer(contentLength);
+							mSocket->readFully(buffer->data(), contentLength);
+							buffer->setRange(0, contentLength);
+							sp<Bundle> bundle = reply->metaData();
+							bundle->putObject("Content", buffer);
+						}
 					}
-				}
 
-				reply->sendToTarget();
-			} else {
-				reply->obj = rtspHeader;
-				reply->sendToTarget();
+					reply->sendToTarget();
+				} else {
+					reply->obj = rtspHeader;
+					reply->sendToTarget();
+				}
 			}
+		} else {
+			// TODO: Shutdown the player.
+			break;
 		}
 	}
 }

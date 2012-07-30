@@ -30,19 +30,20 @@ RtspSocket::RtspSocket(const char* host, uint16_t port) :
 	connect(host, port);
 }
 
-String RtspSocket::readLine() {
+bool RtspSocket::readLine(String& result) {
+	int32_t resultCode = 0;
 	String line;
-	int32_t result = 0;
 	char character;
 	bool CR = false;
 	bool LF = false;
 	while (!CR || !LF) {
-		result = readFully((uint8_t*)&character, 1);
-		if (result > 0) {
+		resultCode = readFully((uint8_t*)&character, 1);
+		if (resultCode > 0) {
 			if (character == '\r') {
 				CR = true;
 			} else if (CR && character == '\n') {
 				LF = true;
+				result = line.trim();
 			} else {
 				CR = false;
 				LF = false;
@@ -52,15 +53,16 @@ String RtspSocket::readLine() {
 			break;
 		}
 	}
-	return result > 0 ? line.trim() : String(NULL);
+	return resultCode > 0;
 }
 
-RtspHeader* RtspSocket::readPacketHeader() {
-	RtspHeader* rtspHeader = new RtspHeader();
+bool RtspSocket::readPacketHeader(RtspHeader*& rtspHeader) {
+	rtspHeader = new RtspHeader();
+	bool resultCode;
 	String line;
 	do {
-		line = readLine();
-		if (line.size() > 0) {
+		resultCode = readLine(line);
+		if (resultCode && line.size() > 0) {
 			if (rtspHeader->empty()) {
 				sp< List<String> > resultCode = line.split(" ");
 				if (resultCode->size() < 2) {
@@ -88,11 +90,13 @@ RtspHeader* RtspSocket::readPacketHeader() {
 				}
 			}
 		}
-	} while (!line.isNull() && line.size() > 0);
+	} while (resultCode && line.size() > 0);
 
-	if (line.isNull()) {
+	if (!resultCode) {
 		delete rtspHeader;
+		rtspHeader = NULL;
+		return false;
 	}
 
-	return !line.isNull() ? rtspHeader : NULL;
+	return true;
 }

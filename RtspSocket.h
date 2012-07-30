@@ -31,8 +31,8 @@ public:
 	RtspSocket();
 	RtspSocket(const char* host, uint16_t port);
 	virtual ~RtspSocket() {}
-	mindroid::String readLine();
-	RtspHeader* readPacketHeader();
+	bool readLine(mindroid::String& result);
+	bool readPacketHeader(RtspHeader*& rtspHeader);
 
 private:
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(RtspSocket)

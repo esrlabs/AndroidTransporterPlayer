@@ -146,15 +146,15 @@ void RtpMediaSource::NetReceiver::run() {
 					msg->sendToTarget();
 				}
 			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
-//				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
-//				ssize_t size = mRtcpSocket->recv(buffer->data(), buffer->capacity());
-//				if (size > 0) {
-//					buffer->setRange(0, size);
-//					sp<Message> msg = mNotifyRtcpPacket->dup();
-//					sp<Bundle> bundle = msg->metaData();
-//					bundle->putObject("RTCP-Packet", buffer);
-//					msg->sendToTarget();
-//				}
+				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
+				ssize_t size = mRtcpSocket->recv(buffer->data(), buffer->capacity());
+				if (size > 0) {
+					buffer->setRange(0, size);
+					sp<Message> msg = mNotifyRtcpPacket->dup();
+					sp<Bundle> bundle = msg->metaData();
+					bundle->putObject("RTCP-Packet", buffer);
+					msg->sendToTarget();
+				}
 			}
 		}
 	}
