@@ -161,7 +161,7 @@ void RPiPlayer::onFillAndPlayAudioBuffers() {
 			if (size == (*itr)->size()) {
 				mAudioBuffers->erase(mAudioBuffers->begin());
 			} else {
-				(*itr)->setRange(size , (*itr)->size() - size);
+				(*itr)->setRange((*itr)->offset() + size , (*itr)->size() - size);
 				break;
 			}
 			++itr;
@@ -216,7 +216,7 @@ void RPiPlayer::onPlayVideoBuffers() {
 		if (size == accessUnit->size()) {
 			mVideoBuffers->erase(mVideoBuffers->begin());
 		} else {
-			accessUnit->setRange(size, accessUnit->size() - size);
+			accessUnit->setRange(accessUnit->offset() + size, accessUnit->size() - size);
 		}
 
 		if (!mPortSettingsChanged  &&
