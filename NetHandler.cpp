@@ -84,5 +84,9 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		}
 		break;
 	}
+	case MEDIA_SOURCE_HAS_QUIT: {
+		mPlayer->stop();
+		break;
+	}
 	}
 }

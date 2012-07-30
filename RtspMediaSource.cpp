@@ -151,6 +151,11 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 		reply->sendToTarget();
 		break;
 	}
+	case MEDIA_SOURCE_HAS_QUIT: {
+		mNetReceiver = NULL;
+		mNetHandler->obtainMessage(NetHandler::MEDIA_SOURCE_HAS_QUIT)->sendToTarget();
+		break;
+	}
 	}
 }
 
@@ -287,7 +292,7 @@ void RtspMediaSource::NetReceiver::run() {
 				}
 			}
 		} else {
-			// TODO: Shutdown the player.
+			mMediaSource->obtainMessage(MEDIA_SOURCE_HAS_QUIT)->sendToTarget();
 			break;
 		}
 	}

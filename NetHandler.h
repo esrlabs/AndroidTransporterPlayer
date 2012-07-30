@@ -36,6 +36,7 @@ public:
 	static const uint32_t STOP_VIDEO_TRACK = 3;
 	static const uint32_t START_AUDIO_TRACK = 4;
 	static const uint32_t STOP_AUDIO_TRACK = 5;
+	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 6;
 
 	NetHandler();
 	~NetHandler();
