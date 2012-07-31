@@ -142,7 +142,7 @@ void RPiPlayer::onFillAndPlayAudioBuffers() {
 		return;
 	}
 
-	assert(!mOmxAudioEmptyBuffers->empty());
+//	assert(!mOmxAudioEmptyBuffers->empty());
 
 	while (!mOmxAudioEmptyBuffers->empty()) {
 		OMX_BUFFERHEADERTYPE* omxBuffer = *mOmxAudioEmptyBuffers->begin();

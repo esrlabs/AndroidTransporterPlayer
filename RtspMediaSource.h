@@ -42,8 +42,9 @@ public:
 	static const uint32_t PLAY_AUDIO_TRACK = 4;
 	static const uint32_t SETUP_VIDEO_TRACK = 5;
 	static const uint32_t PLAY_VIDEO_TRACK = 6;
-	static const uint32_t TEARDOWN_MEDIA_SOURCE = 7;
-	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 8;
+	static const uint32_t TEARDOWN_AUDIO_TRACK = 7;
+	static const uint32_t TEARDOWN_VIDEO_TRACK = 8;
+	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 9;
 
 	RtspMediaSource(const sp<mindroid::Handler>& netHandler);
 	virtual ~RtspMediaSource();

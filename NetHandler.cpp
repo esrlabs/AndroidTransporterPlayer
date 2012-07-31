@@ -76,7 +76,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		sp<Bundle> bundle = message->metaData();
 		sp<Message> reply = bundle->getObject<Message>("Reply");
 		mRtspMediaSource->stop(reply);
-		if (mRtpVideoSource != NULL) {
+		if (mRtpAudioSource != NULL) {
 			mRtpAudioSource->stop();
 		}
 		if (mRtpVideoSource != NULL) {

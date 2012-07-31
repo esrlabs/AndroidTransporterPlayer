@@ -143,12 +143,26 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 		delete rtspHeader;
 		break;
 	}
-	case TEARDOWN_MEDIA_SOURCE: {
-		sp<Bundle> bundle = message->metaData();
-		sp<Message> reply = bundle->getObject<Message>("Reply");
-		mNetReceiver->stop();
-		mNetReceiver = NULL;
-		reply->sendToTarget();
+	case TEARDOWN_AUDIO_TRACK: {
+		mAudioSessionId = NULL;
+		if (mVideoSessionId == NULL) {
+			sp<Bundle> bundle = message->metaData();
+			sp<Message> reply = bundle->getObject<Message>("Reply");
+			mNetReceiver->stop();
+			mNetReceiver = NULL;
+			reply->sendToTarget();
+		}
+		break;
+	}
+	case TEARDOWN_VIDEO_TRACK: {
+		mVideoSessionId = NULL;
+		if (mAudioSessionId == NULL) {
+			sp<Bundle> bundle = message->metaData();
+			sp<Message> reply = bundle->getObject<Message>("Reply");
+			mNetReceiver->stop();
+			mNetReceiver = NULL;
+			reply->sendToTarget();
+		}
 		break;
 	}
 	case MEDIA_SOURCE_HAS_QUIT: {
@@ -232,12 +246,22 @@ void RtspMediaSource::playVideoTrack() {
 }
 
 void RtspMediaSource::teardownMediaSource(const sp<mindroid::Message>& reply) {
-	sp<Message> msg = obtainMessage(TEARDOWN_MEDIA_SOURCE);
-	msg->metaData()->putObject("Reply", reply);
-	setPendingRequest(mCSeq, msg);
-	String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\n\r\n",
-			mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++);
-	mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+	if (mAudioSessionId != NULL) {
+		sp<Message> msg = obtainMessage(TEARDOWN_AUDIO_TRACK);
+		msg->metaData()->putObject("Reply", reply);
+		setPendingRequest(mCSeq, msg);
+		String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
+				mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++, mAudioSessionId.c_str());
+		mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+	}
+	if (mVideoSessionId != NULL) {
+		sp<Message> msg = obtainMessage(TEARDOWN_VIDEO_TRACK);
+		msg->metaData()->putObject("Reply", reply);
+		setPendingRequest(mCSeq, msg);
+		String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
+				mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++, mVideoSessionId.c_str());
+		mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+	}
 }
 
 void RtspMediaSource::setPendingRequest(uint32_t id, const sp<Message>& message) {
