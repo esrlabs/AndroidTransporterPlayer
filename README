@@ -1,4 +1,5 @@
 OMX-based Mediaplayer for Raspberry-Pi
+
 - cd /opt/vc/src/hello_pi/libs/ilclient
 - make
 - cd /home/pi
@@ -6,3 +7,5 @@ OMX-based Mediaplayer for Raspberry-Pi
 - git clone https://github.com/esrlabs/AndroidTransporterPlayer.git
 - cd AndroidTransporterPlayer
 - git clone https://github.com/esrlabs/Mindroid.git
+- make
+- ./AndroidTransporterPlayer rtsp://ip:port/name.sdp
