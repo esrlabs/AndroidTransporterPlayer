@@ -72,8 +72,9 @@ private:
 	static const uint32_t SAMPLE_RATE = 43932; // Hz, should be 44100Hz but the RPi hardware is too fast
 	static const uint32_t NUM_CHANNELS = 2;
 	static const uint32_t BITS_PER_SAMPLE = 16;
-	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 4;
-	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 8192; // 4096 samples -> 93ms
+	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 8;
+	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 4096; // 2048 samples -> 46ms
+	static const uint32_t MIN_FILLED_AUDIO_BUFFERS_AT_START = 4;
 	ILCLIENT_T* mAudioClient;
 	COMPONENT_T* mAudioRenderer;
 	COMPONENT_T* mAudioComponentList[2];

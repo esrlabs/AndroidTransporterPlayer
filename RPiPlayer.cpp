@@ -133,7 +133,7 @@ void RPiPlayer::onFillAndPlayAudioBuffers() {
 		++itr;
 	}
 	if (mFirstAudioPacket) {
-		if (totalBufferSize < 2 * OMX_AUDIO_BUFFER_SIZE) {
+		if (totalBufferSize < MIN_FILLED_AUDIO_BUFFERS_AT_START * OMX_AUDIO_BUFFER_SIZE) {
 			return;
 		}
 		mFirstAudioPacket = false;
