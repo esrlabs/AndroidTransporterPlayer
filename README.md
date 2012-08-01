@@ -8,7 +8,7 @@
     git clone https://github.com/esrlabs/AndroidTransporterPlayer.git
     cd AndroidTransporterPlayer
     git clone https://github.com/esrlabs/Mindroid.git
-    make
+    make -f Makefile.RPi
 
 ###Usage
 &lt;IP-Address&gt; is always the IP address of the VLC streaming server.
@@ -18,6 +18,4 @@
 
 #### VLC streaming server
 vlc &lt;video&gt;.mp4 --sout '#rtp{sdp=rtsp://&lt;IP-Address&gt;:9000/test.sdp}' --rtsp-timeout=-1
-
-
 
