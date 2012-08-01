@@ -69,7 +69,7 @@ private:
 	sp< mindroid::List< sp<mindroid::Buffer> > > mVideoBuffers;
 
 	// Audio
-	static const uint32_t SAMPLE_RATE = 43924; // Hz, should be 44100Hz but the RPi hardware is too fast
+	static const uint32_t SAMPLE_RATE = 43932; // Hz, should be 44100Hz but the RPi hardware is too fast
 	static const uint32_t NUM_CHANNELS = 2;
 	static const uint32_t BITS_PER_SAMPLE = 16;
 	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 4;
