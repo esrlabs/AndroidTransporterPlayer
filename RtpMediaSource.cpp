@@ -21,7 +21,6 @@
 #include "mindroid/net/DatagramSocket.h"
 #include "mindroid/util/Buffer.h"
 #include "MediaAssembler.h"
-#include "rtcp/Rtcp.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -29,7 +28,6 @@
 #include <sys/resource.h>
 
 using namespace mindroid;
-using namespace rtcp;
 
 RtpMediaSource::RtpMediaSource(uint16_t port) :
 		mRtpPacketCounter(0),
@@ -61,25 +59,6 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
             }
             break;
         }
-//        case NOTIFY_RTCP_PACKET: {
-//            sp<Bundle> bundle = message->metaData();
-//            sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
-//            sp<Rtcp::SenderReport> senderReport = Rtcp::parseSenderReport(buffer);
-//            if(senderReport.getPointer()) {
-//                printf("packetCount:%d, version:%d, padding:%d, rrcount:%d, packetType:%d, length:%d, ssrc:%d, ntpTimestamp:%d, rtpTimestamp:%d, senderPacketCount:%d, senderOctetCount:%d, senderPacketCount:%d \n",
-//                            senderReport->version,
-//                            senderReport->padding,
-//                            senderReport->rrcount,
-//                            senderReport->packetType,
-//                            senderReport->length,
-//                            senderReport->ssrc,
-//                            senderReport->ntpTimestamp,
-//                            senderReport->rtpTimestamp,
-//                            senderReport->senderPacketCount,
-//                            senderReport->senderOctetCount);
-//            }
-//            break;
-//        }
     }
 }
 
