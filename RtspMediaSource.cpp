@@ -19,6 +19,7 @@
 #include "mindroid/os/Message.h"
 #include "mindroid/os/Handler.h"
 #include "mindroid/util/Buffer.h"
+#include <stdio.h>
 
 using namespace mindroid;
 
@@ -69,7 +70,7 @@ bool RtspMediaSource::start(const String& url) {
 }
 
 void RtspMediaSource::stop(const sp<mindroid::Message>& reply) {
-	if (mNetReceiver != NULL) {
+	if (mNetReceiver != NULL && (mAudioSessionId != NULL || mVideoSessionId != NULL)) {
 		teardownMediaSource(reply);
 	} else {
 		reply->sendToTarget();
@@ -189,24 +190,25 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 	String videoMediaDesc;
 
 	while (itr != lines->end()) {
-		if (itr->startsWith("m=")) {
-			mediaDesc = *itr;
-			if (mediaDesc.startsWith("m=audio 0 RTP/AVP 10")) {
-				audioMediaDesc = mediaDesc;
-			} else if (mediaDesc.startsWith("m=video 0 RTP/AVP 96")) {
-				videoMediaDesc = mediaDesc;
+		String line = itr->trim();
+		if (line.startsWith("m=")) {
+			if (line.startsWith("m=audio") && line.endsWith(("10"))) {
+				audioMediaDesc = line;
+			} else if (line.startsWith("m=video") && line.endsWith("96")) {
+				videoMediaDesc = line;
 			} else {
+				audioMediaDesc = NULL;
 				videoMediaDesc = NULL;
 			}
-		} else if (itr->startsWith("a=")) {
-			if (itr->startsWith("a=control:")) {
+		} else if (line.startsWith("a=")) {
+			if (line.startsWith("a=control:")) {
 				if (!audioMediaDesc.isEmpty()) {
-					mAudioMediaSource = itr->substr(String::size("a=control:")).trim();
+					mAudioMediaSource = line.substr(String::size("a=control:")).trim();
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_AUDIO_TRACK);
 					msg->arg1 = 10;
 					msg->sendToTarget();
 				} else if (!videoMediaDesc.isEmpty()) {
-					mVideoMediaSource = itr->substr(String::size("a=control:")).trim();
+					mVideoMediaSource = line.substr(String::size("a=control:")).trim();
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_VIDEO_TRACK);
 					msg->arg1 = 96;
 					msg->sendToTarget();
@@ -214,6 +216,11 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 			}
 		}
 		++itr;
+	}
+
+	if (mAudioMediaSource == NULL && mVideoMediaSource == NULL) {
+		printf("The media source does not offer an audio or video stream.\n");
+		mNetHandler->obtainMessage(NetHandler::MEDIA_SOURCE_HAS_NO_STREAMS)->sendToTarget();
 	}
 }
 
