@@ -4,6 +4,7 @@ ROOTFS		:= $(BUILDROOT)/rootfs
 SYSROOT		:= $(BUILDROOT)/tools/arm-bcm2708/x86-linux64-cross-arm-linux-hardfp/arm-bcm2708hardfp-linux-gnueabi/sys-root
 CC			:= $(TOOLCHAIN)/bin/arm-bcm2708hardfp-linux-gnueabi-gcc --sysroot=$(SYSROOT)
 CXX         := $(TOOLCHAIN)/bin/arm-bcm2708hardfp-linux-gnueabi-g++ --sysroot=$(SYSROOT)
+OUT		:= out
 # --sysroot=dir
 # Use dir as the logical root directory for headers and libraries.
 # For example, if the compiler normally searches for headers in /usr/include and libraries in /usr/lib, it instead searches dir/usr/include and dir/usr/lib.
@@ -28,15 +29,20 @@ SRCS = \
 	NetHandler.cpp \
 	AndroidTransporterPlayer.cpp \
 
-OBJS += $(filter %.o,$(SRCS:.cpp=.o))
+OBJS = $(patsubst %.cpp,$(OUT)/%.o,$(SRCS))
 
-AndroidTransporterPlayer: $(OBJS)
-	$(CXX) $(LDFLAGS) -o AndroidTransporterPlayer $(OBJS) $(LIBS)
+$(OUT)/AndroidTransporterPlayer: $(OBJS)
+	$(CXX) $(LDFLAGS) -o $(OUT)/AndroidTransporterPlayer $(OBJS) $(LIBS)
 
-%.o: %.cpp
+$(OBJS): | $(OUT)
+
+$(OUT):
+	@mkdir -p $@
+
+$(OUT)/%.o: %.cpp
 	@rm -f $@ 
 	$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
 	for i in $(OBJS); do (if test -e "$$i"; then ( rm $$i ); fi ); done
-	@rm -f AndroidTransporterPlayer
+	@rm -rf $(OUT)
