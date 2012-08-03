@@ -62,6 +62,8 @@ private:
 	void onFillAndPlayAudioBuffers();
 	void onPlayVideoBuffers();
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
+	bool minNumAudioSamplesAvailable();
+	void calcNumAudioStretchSamples();
 	uint32_t numOmxOwnedAudioSamples();
 
 	sp< mindroid::LooperThread<NetHandler> > mNetLooper;
@@ -69,12 +71,13 @@ private:
 	sp< mindroid::List< sp<mindroid::Buffer> > > mVideoBuffers;
 
 	// Audio
-	static const uint32_t SAMPLE_RATE = 43932; // Hz, should be 44100Hz but the RPi hardware is too fast
+	static const uint32_t SAMPLE_RATE = 43932; // Hz, should be 44100Hz but the RPi hardware is too fast.
 	static const uint32_t NUM_CHANNELS = 2;
 	static const uint32_t BITS_PER_SAMPLE = 16;
+	static const uint32_t BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 8;
 	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 4096; // 2048 samples -> 46ms
-	static const uint32_t MIN_FILLED_AUDIO_BUFFERS_AT_START = 4;
+	static const uint32_t MIN_FILLED_AUDIO_BUFFERS_AT_START = 3;
 	ILCLIENT_T* mAudioClient;
 	COMPONENT_T* mAudioRenderer;
 	COMPONENT_T* mAudioComponentList[2];
@@ -82,6 +85,7 @@ private:
 	bool mFirstAudioPacket;
 	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mOmxAudioInputBuffers;
 	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mOmxAudioEmptyBuffers;
+	size_t mNumAudioStretchSamples;
 
 	// Video
 	ILCLIENT_T* mVideoClient;
