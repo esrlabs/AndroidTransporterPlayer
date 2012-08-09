@@ -81,6 +81,7 @@ private:
 	void setPendingRequest(uint32_t id, const sp<mindroid::Message>& message);
 	sp<mindroid::Message> getPendingRequest(uint32_t id);
 	sp<mindroid::Message> removePendingRequest(uint32_t id);
+	void startNextPendingTrack();
 
 	sp<mindroid::Handler> mNetHandler;
 	sp<NetReceiver> mNetReceiver;
@@ -96,6 +97,7 @@ private:
 
 	mindroid::Lock mLock;
 	std::map< uint32_t, sp<mindroid::Message> > mPendingRequests;
+	mindroid::List< sp<mindroid::Message> > mPendingTracks;
 
 	friend class NetReceiver;
 };

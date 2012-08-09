@@ -77,8 +77,6 @@ void RtspMediaSource::stop(const sp<mindroid::Message>& reply) {
 	}
 }
 
-static bool video = false; // TODO VLC don't like parallel SETUP & PLAY for audio / video
-
 void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case DESCRIBE_MEDIA_SOURCE: {
@@ -101,8 +99,7 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case START_VIDEO_TRACK: {
-		video = true;
-//		setupVideoTrack(message->arg1);
+		setupVideoTrack(message->arg1);
 		break;
 	}
 	case SETUP_AUDIO_TRACK: {
@@ -124,6 +121,7 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 			// TODO: error handling
 		}
 		delete rtspHeader;
+		startNextPendingTrack();
 		break;
 	}
 	case SETUP_VIDEO_TRACK: {
@@ -145,6 +143,7 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 			// TODO: error handling
 		}
 		delete rtspHeader;
+		startNextPendingTrack();
 		break;
 	}
 	case TEARDOWN_AUDIO_TRACK: {
@@ -185,10 +184,12 @@ void RtspMediaSource::describeMediaSource() {
 }
 
 void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
+	mPendingTracks.clear();
+
 	String mediaSourceDesc((char*)desc->data(), desc->size());
 	sp< List<String> > lines = mediaSourceDesc.split("\n");
 	List<String>::iterator itr = lines->begin();
-	String mediaDesc;
+
 	String audioMediaDesc;
 	String audioMediaType;
 	String aacAudioConfig;
@@ -196,14 +197,17 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 
 	while (itr != lines->end()) {
 		String line = itr->trim();
+		//printf("%s\n", line.c_str());
 		if (line.startsWith("m=")) {
 			if (line.startsWith("m=audio")) {
 				audioMediaDesc = line;
 				sp< List<String> > strings = line.split(" ");
 				List<String>::iterator lastItr = --strings->end();
 				audioMediaType = *lastItr;
+				videoMediaDesc = NULL;
 			} else if (line.startsWith("m=video")) {
 				videoMediaDesc = line;
+				audioMediaDesc = NULL;
 			} else {
 				audioMediaDesc = NULL;
 				videoMediaDesc = NULL;
@@ -225,21 +229,31 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_AUDIO_TRACK);
 					msg->metaData()->putUInt32("Type", atoi(audioMediaType.c_str()));
 					msg->metaData()->putString("AacAudioConfig", aacAudioConfig);
-					msg->sendToTarget();
+					mPendingTracks.push_back(msg);
 				} else if (!videoMediaDesc.isEmpty()) {
 					mVideoMediaSource = line.substr(String::size("a=control:")).trim();
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_VIDEO_TRACK);
 					msg->arg1 = 96;
-					msg->sendToTarget();
+					mPendingTracks.push_back(msg);
 				}
 			}
 		}
 		++itr;
 	}
 
-	if (mAudioMediaSource == NULL && mVideoMediaSource == NULL) {
+	if (mPendingTracks.size() > 0) {
+		startNextPendingTrack();
+	} else {
 		printf("The media source does not offer an audio or video stream.\n");
 		mNetHandler->obtainMessage(NetHandler::MEDIA_SOURCE_HAS_NO_STREAMS)->sendToTarget();
+	}
+}
+
+void RtspMediaSource::startNextPendingTrack() {
+	List< sp<Message> >::iterator itr = mPendingTracks.begin();
+	if (itr != mPendingTracks.end()) {
+		(*itr)->sendToTarget();
+		mPendingTracks.erase(itr);
 	}
 }
 
@@ -255,10 +269,6 @@ void RtspMediaSource::playAudioTrack() {
 	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
 			mAudioMediaSource.c_str(), mCSeq++, mAudioSessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
-
-	if (video) {
-		setupVideoTrack(56098);
-	}
 }
 
 void RtspMediaSource::setupVideoTrack(uint16_t port) {
