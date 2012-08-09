@@ -18,6 +18,7 @@
 #include "RPiPlayer.h"
 #include "mindroid/os/Bundle.h"
 #include "PcmMediaAssembler.h"
+#include "AacMediaAssembler.h"
 #include "AvcMediaAssembler.h"
 #include <stdio.h>
 #include <sys/resource.h>
@@ -43,10 +44,19 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case START_AUDIO_TRACK: {
-		if (message->arg1 == PCM_AUDIO_TYPE) {
+		uint32_t audioType;
+		message->metaData()->fillUInt32("Type", audioType);
+		if (audioType == PCM_AUDIO_TYPE) {
 			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
 			mRtpAudioSource->start(new PcmMediaAssembler(mRtpAudioSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER)));
+			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
+			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
+			msg->sendToTarget();
+		} else if (audioType == AAC_AUDIO_TYPE) {
+			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
+			mRtpAudioSource->start(new AacMediaAssembler(mRtpAudioSource->getMediaQueue(),
+					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER), message->metaData()->getString("AacAudioConfig")));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
 			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
 			msg->sendToTarget();

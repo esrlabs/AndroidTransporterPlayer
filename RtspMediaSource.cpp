@@ -77,6 +77,8 @@ void RtspMediaSource::stop(const sp<mindroid::Message>& reply) {
 	}
 }
 
+static bool video = false; // TODO VLC don't like parallel SETUP & PLAY for audio / video
+
 void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case DESCRIBE_MEDIA_SOURCE: {
@@ -99,7 +101,8 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case START_VIDEO_TRACK: {
-		setupVideoTrack(message->arg1);
+		video = true;
+//		setupVideoTrack(message->arg1);
 		break;
 	}
 	case SETUP_AUDIO_TRACK: {
@@ -187,25 +190,41 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 	List<String>::iterator itr = lines->begin();
 	String mediaDesc;
 	String audioMediaDesc;
+	String audioMediaType;
+	String aacAudioConfig;
 	String videoMediaDesc;
 
 	while (itr != lines->end()) {
 		String line = itr->trim();
 		if (line.startsWith("m=")) {
-			if (line.startsWith("m=audio") && line.endsWith(("10"))) {
+			if (line.startsWith("m=audio")) {
 				audioMediaDesc = line;
-			} else if (line.startsWith("m=video") && line.endsWith("96")) {
+				sp< List<String> > strings = line.split(" ");
+				List<String>::iterator lastItr = --strings->end();
+				audioMediaType = *lastItr;
+			} else if (line.startsWith("m=video")) {
 				videoMediaDesc = line;
 			} else {
 				audioMediaDesc = NULL;
 				videoMediaDesc = NULL;
 			}
 		} else if (line.startsWith("a=")) {
-			if (line.startsWith("a=control:")) {
+			if (line.startsWith("a=fmtp:")) {
+				sp< List<String> > strings = line.split(";");
+				List<String>::iterator itr = strings->begin();
+				while (itr != strings->end()) {
+					if (itr->trim().startsWith("config=")) {
+						ssize_t pos = itr->indexOf("=");
+						aacAudioConfig = itr->substr(pos + 1);
+					}
+					++itr;
+				}
+			} else if (line.startsWith("a=control:")) {
 				if (!audioMediaDesc.isEmpty()) {
 					mAudioMediaSource = line.substr(String::size("a=control:")).trim();
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_AUDIO_TRACK);
-					msg->arg1 = 10;
+					msg->metaData()->putUInt32("Type", atoi(audioMediaType.c_str()));
+					msg->metaData()->putString("AacAudioConfig", aacAudioConfig);
 					msg->sendToTarget();
 				} else if (!videoMediaDesc.isEmpty()) {
 					mVideoMediaSource = line.substr(String::size("a=control:")).trim();
@@ -236,6 +255,10 @@ void RtspMediaSource::playAudioTrack() {
 	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
 			mAudioMediaSource.c_str(), mCSeq++, mAudioSessionId.c_str());
 	mSocket->write(playMessage.c_str(), playMessage.size());
+
+	if (video) {
+		setupVideoTrack(56098);
+	}
 }
 
 void RtspMediaSource::setupVideoTrack(uint16_t port) {
