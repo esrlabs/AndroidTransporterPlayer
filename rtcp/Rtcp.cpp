@@ -104,11 +104,11 @@ void Rtcp::parseSR(BitstreamReader& bs, uint8_t padding, uint8_t rrcount) {
         printf("RTCP buffer too small to accomodate RR.\n");
         return;
     }
+
     SenderReport* sr = new SenderReport();
     sr->version = 2;
     sr->padding = padding;
     sr->rrcount = rrcount;
-
     sr->length = bs.get<16>();
     sr->ssrc = bs.get<32>();
     sr->ntpTimestamp = bs.get<64>();
@@ -118,8 +118,7 @@ void Rtcp::parseSR(BitstreamReader& bs, uint8_t padding, uint8_t rrcount) {
 
     sp<Message> msg = mNotifyRtcpSR->dup();
     sp<Bundle> bundle = msg->metaData();
-    sp<Buffer> buffer(new Buffer(PACKET_SIZE));
-    bundle->putObject("RTCP-SR-Packet", buffer);
+    bundle->putObject("RTCP-SR-Packet", sr);
     msg->sendToTarget();
 }
 
