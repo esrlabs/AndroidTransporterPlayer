@@ -252,8 +252,9 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 void RtspMediaSource::startNextPendingTrack() {
 	List< sp<Message> >::iterator itr = mPendingTracks.begin();
 	if (itr != mPendingTracks.end()) {
-		(*itr)->sendToTarget();
+		sp<Message> msg = (*itr);
 		mPendingTracks.erase(itr);
+		msg->sendToTarget();
 	}
 }
 
