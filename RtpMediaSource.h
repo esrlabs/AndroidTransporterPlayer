@@ -29,6 +29,9 @@ class Message;
 class Buffer;
 class DatagramSocket;
 }
+namespace rtcp {
+class Rtcp;
+}
 
 using mindroid::sp;
 
@@ -69,6 +72,7 @@ private:
 
 	static const uint32_t NOTIFY_RTP_PACKET = 0;
 	static const uint32_t NOTIFY_RTCP_PACKET = 1;
+	static const uint32_t NOTIFY_RTCP_SR = 2;
 	static const uint32_t RTP_HEADER_SIZE = 12;
 	static const uint8_t EXT_HEADER_BIT = 1 << 4;
 	static const uint8_t PADDING_BIT = 1 << 5;
@@ -80,6 +84,7 @@ private:
 	sp<NetReceiver> mNetReceiver;
 	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
 	sp<MediaAssembler> mMediaAssembler;
+    sp<rtcp::Rtcp> mRtcp;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;
 
