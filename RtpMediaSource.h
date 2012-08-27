@@ -29,9 +29,7 @@ class Message;
 class Buffer;
 class DatagramSocket;
 }
-namespace rtcp {
 class Rtcp;
-}
 
 using mindroid::sp;
 
@@ -84,7 +82,7 @@ private:
 	sp<NetReceiver> mNetReceiver;
 	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
 	sp<MediaAssembler> mMediaAssembler;
-    sp<rtcp::Rtcp> mRtcp;
+//	sp<rtcp::Rtcp> mRtcp;
 	uint32_t mRtpPacketCounter;
 	uint32_t mHighestSeqNumber;
 

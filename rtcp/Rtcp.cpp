@@ -7,8 +7,6 @@
 
 using namespace mindroid;
 
-namespace rtcp {
-
 static const uint32_t kSourceID = 0xdeadbeef;
 
 Rtcp::Rtcp(sp<Message> notifyRtcpSR) :
@@ -204,7 +202,3 @@ void Rtcp::addReceiverReport(const sp<Buffer>& buffer,
     bs.put<32>(DLRS);
     buffer->setRange(buffer->offset() + PACKET_SIZE, buffer->size() - PACKET_SIZE);
 }
-
-
-} //namespace rtcp
-

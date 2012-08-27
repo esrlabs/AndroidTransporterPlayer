@@ -29,14 +29,13 @@
 #include <sys/resource.h>
 
 using namespace mindroid;
-using namespace rtcp;
 
 RtpMediaSource::RtpMediaSource(uint16_t port) :
 		mRtpPacketCounter(0),
 		mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
 	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET));
-	mRtcp = new Rtcp(obtainMessage(NOTIFY_RTCP_SR));
+//	mRtcp = new Rtcp(obtainMessage(NOTIFY_RTCP_SR));
 }
 
 RtpMediaSource::~RtpMediaSource() {
@@ -63,15 +62,14 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
             break;
         }
         case NOTIFY_RTCP_PACKET: {
-            sp<Bundle> bundle = message->metaData();
-            sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
-            mRtcp->onPacketReceived(buffer);
+//			sp<Bundle> bundle = message->metaData();
+//			sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
+//			mRtcp->onPacketReceived(buffer);
             break;
         }
         case NOTIFY_RTCP_SR: {
-            sp<Bundle> bundle = message->metaData();
-            sp<Rtcp::SenderReport> sr = bundle->getObject<Rtcp::SenderReport>("RTCP-SR-Packet");
-            // TODO: use sr
+//			sp<Bundle> bundle = message->metaData();
+//			sp<Rtcp::SenderReport> sr = bundle->getObject<Rtcp::SenderReport>("RTCP-SR-Packet");
             break;
         }
         default:

@@ -11,7 +11,6 @@ namespace mindroid {
 class Buffer;
 class Message;
 }
-namespace rtcp {
 
 class RtcpSessionState {
 public:
@@ -129,7 +128,5 @@ private:
 	NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(Rtcp)
 
 };
-} //namespace rtcp
-
 
 #endif // RTCP_H_
