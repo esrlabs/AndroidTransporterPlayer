@@ -62,7 +62,7 @@ MediaAssembler::Status AacMediaAssembler::assembleMediaData() {
 		}
 	}
 
-	if (buffer->size() < 1) {
+	if (buffer->size() < 5) {
 		mQueue->erase(mQueue->begin());
 		++mSeqNumber;
 		return PACKET_FAILURE;

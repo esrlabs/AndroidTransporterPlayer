@@ -39,8 +39,6 @@ MediaAssembler::Status PcmMediaAssembler::assembleMediaData() {
 	}
 
 	sp<Buffer> buffer = *mQueue->begin();
-	const uint8_t* data = buffer->data();
-	size_t size = buffer->size();
 
 	if (!mInitSeqNumber) {
 		List< sp<Buffer> >::iterator itr = mQueue->begin();
