@@ -38,10 +38,10 @@ public:
 	static const uint32_t START_VIDEO_TRACK = 0;
 	static const uint32_t START_AUDIO_TRACK = 1;
 	static const uint32_t DESCRIBE_MEDIA_SOURCE = 2;
-	static const uint32_t SETUP_AUDIO_TRACK = 3;
-	static const uint32_t PLAY_AUDIO_TRACK = 4;
-	static const uint32_t SETUP_VIDEO_TRACK = 5;
-	static const uint32_t PLAY_VIDEO_TRACK = 6;
+	static const uint32_t SETUP_AUDIO_TRACK_DONE = 3;
+	static const uint32_t PLAY_AUDIO_TRACK_DONE = 4;
+	static const uint32_t SETUP_VIDEO_TRACK_DONE = 5;
+	static const uint32_t PLAY_VIDEO_TRACK_DONE = 6;
 	static const uint32_t TEARDOWN_AUDIO_TRACK = 7;
 	static const uint32_t TEARDOWN_VIDEO_TRACK = 8;
 	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 9;
@@ -81,7 +81,7 @@ private:
 	void setPendingRequest(uint32_t id, const sp<mindroid::Message>& message);
 	sp<mindroid::Message> getPendingRequest(uint32_t id);
 	sp<mindroid::Message> removePendingRequest(uint32_t id);
-	void startNextPendingTrack();
+	void startPendingTracks();
 
 	sp<mindroid::Handler> mNetHandler;
 	sp<NetReceiver> mNetReceiver;

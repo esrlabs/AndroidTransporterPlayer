@@ -56,7 +56,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		} else if (audioType == AAC_AUDIO_TYPE) {
 			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
 			mRtpAudioSource->start(new AacMediaAssembler(mRtpAudioSource->getMediaQueue(),
-					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER), message->metaData()->getString("AacAudioConfig")));
+					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER), message->metaData()->getString("CodecConfig")));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
 			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
 			msg->sendToTarget();
@@ -68,7 +68,9 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		break;
 	}
 	case START_VIDEO_TRACK: {
-		if (message->arg1 == AVC_VIDEO_TYPE) {
+		uint32_t videoType;
+		message->metaData()->fillUInt32("Type", videoType);
+		if (videoType == AVC_VIDEO_TYPE) {
 			mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
 			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
