@@ -199,16 +199,28 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 		String line = itr->trim();
 		if (line.startsWith("m=")) {
 			if (line.startsWith("m=audio")) {
-				audioMediaDesc = line;
 				sp< List<String> > strings = line.split(" ");
-				List<String>::iterator lastItr = --strings->end();
-				mediaType = *lastItr;
+				List<String>::iterator itr = strings->begin();
+				String port = *(++itr);
+				String protocol = *(++itr);
+				mediaType = *(++itr);
+				if (protocol.trim() == "RTP/AVP") {
+					audioMediaDesc = line;
+				} else {
+					audioMediaDesc = NULL;
+				}
 				videoMediaDesc = NULL;
 			} else if (line.startsWith("m=video")) {
-				videoMediaDesc = line;
 				sp< List<String> > strings = line.split(" ");
-				List<String>::iterator lastItr = --strings->end();
-				mediaType = *lastItr;
+				List<String>::iterator itr = strings->begin();
+				String port = *(++itr);
+				String protocol = *(++itr);
+				mediaType = *(++itr);
+				if (protocol.trim() == "RTP/AVP") {
+					videoMediaDesc = line;
+				} else {
+					videoMediaDesc = NULL;
+				}
 				audioMediaDesc = NULL;
 			} else {
 				audioMediaDesc = NULL;
