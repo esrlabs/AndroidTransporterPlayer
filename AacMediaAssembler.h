@@ -23,12 +23,12 @@
 #include <mindroid/util/List.h>
 #include <mindroid/lang/String.h>
 
-#include "aacdecoder_lib.h"
-
 namespace mindroid {
 class Message;
 class Buffer;
 }
+
+class AacDecoder;
 
 using mindroid::sp;
 
@@ -36,22 +36,14 @@ class AacMediaAssembler :
 	public MediaAssembler
 {
 public:
-	AacMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, const sp<mindroid::Message>& notifyBuffer, const mindroid::String& config);
+	AacMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, sp<AacDecoder> aacDecoder);
 	virtual ~AacMediaAssembler();
-
 	virtual Status assembleMediaData();
 	virtual uint32_t getNextSeqNum() const;
 
 private:
-	static const UINT AAC_HEADER_LENGTH = 4;
-	static const UINT AAC_OUTPUT_LENGTH = 4096;
-
-	sp<mindroid::Buffer> decodeAacPacket(sp<mindroid::Buffer> buffer);
-
 	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;
-	sp<mindroid::Message> mNotifyBuffer;
-	HANDLE_AACDECODER mAacDecoder;
-    RAM_ALIGN INT_PCM mAacOutput[AAC_OUTPUT_LENGTH];
+	sp<AacDecoder> mAacDecoder;
 };
 
 #endif /* AACMEDIAASSEMBLER_H_ */

@@ -17,10 +17,33 @@
 #ifndef AACDECODER_H_
 #define AACDECODER_H_
 
-class AacDecoder {
+#include <mindroid/os/Ref.h>
+#include <mindroid/lang/String.h>
+#include "aacdecoder_lib.h"
+
+namespace mindroid {
+class Message;
+class Buffer;
+}
+
+using mindroid::sp;
+
+class AacDecoder :
+		public mindroid::Ref {
 public:
-	AacDecoder();
+	AacDecoder(const mindroid::String& codecConfig, const sp<mindroid::Message>& notifyBuffer);
 	virtual ~AacDecoder();
+	void processBuffer(sp<mindroid::Buffer> buffer);
+
+private:
+	static const uint32_t AAC_HEADER_SIZE = 4;
+	static const uint32_t PCM_AUDIO_BUFFER_SIZE = 4096;
+
+	sp<mindroid::Buffer> decodeBuffer(sp<mindroid::Buffer> buffer);
+	sp<mindroid::Buffer> hexStringToByteArray(const mindroid::String& hexString);
+
+	sp<mindroid::Message> mNotifyBuffer;
+	HANDLE_AACDECODER mAacDecoder;
 };
 
 #endif /* AACDECODER_H_ */

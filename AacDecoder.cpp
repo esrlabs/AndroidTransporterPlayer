@@ -15,9 +15,70 @@
  */
 
 #include "AacDecoder.h"
+#include <mindroid/os/Message.h>
+#include <mindroid/util/Buffer.h>
 
-AacDecoder::AacDecoder() {
+using namespace mindroid;
+
+AacDecoder::AacDecoder(const String& codecConfig, const sp<mindroid::Message>& notifyBuffer) :
+		mNotifyBuffer(notifyBuffer) {
+	mAacDecoder = aacDecoder_Open(TT_MP4_RAW, 1);
+	aacDecoder_SetParam(mAacDecoder, AAC_PCM_OUTPUT_INTERLEAVED, 1);
+
+	sp<Buffer> aacCodecConfig = hexStringToByteArray(codecConfig);
+	UCHAR* configBuffers[2];
+	UINT configBufferSizes[2] = {0};
+	configBuffers[0] = aacCodecConfig->data();
+	configBufferSizes[0] = aacCodecConfig->size();
+	aacDecoder_ConfigRaw(mAacDecoder, configBuffers, configBufferSizes);
 }
 
 AacDecoder::~AacDecoder() {
+	aacDecoder_Close(mAacDecoder);
+}
+
+void AacDecoder::processBuffer(sp<Buffer> buffer) {
+	sp<Buffer> audioBuffer = decodeBuffer(buffer);
+	if (audioBuffer != NULL) {
+		sp<Message> msg = mNotifyBuffer->dup();
+		sp<Bundle> bundle = msg->metaData();
+		bundle->putObject("Buffer", audioBuffer);
+		msg->sendToTarget();
+	}
+}
+
+sp<Buffer> AacDecoder::decodeBuffer(sp<Buffer> buffer) {
+	if(buffer->size() <= AAC_HEADER_SIZE) {
+		return NULL;
+	}
+
+    UCHAR* aacInputBuffers[2];
+    UINT aacInputBufferSizes[2] = {0};
+    UINT numValidBytes[2] = {0};
+
+	sp<Buffer> pcmAudioBuffer = new Buffer(PCM_AUDIO_BUFFER_SIZE);
+
+	aacInputBuffers[0] = (UCHAR*) (buffer->data() + AAC_HEADER_SIZE);
+    aacInputBufferSizes[0] = buffer->size() - AAC_HEADER_SIZE;
+    numValidBytes[0] = buffer->size() - AAC_HEADER_SIZE;
+
+	AAC_DECODER_ERROR result;
+	result = aacDecoder_Fill(mAacDecoder, aacInputBuffers, aacInputBufferSizes, numValidBytes);
+	if (result == AAC_DEC_OK) {
+		result = aacDecoder_DecodeFrame(mAacDecoder, (INT_PCM*) pcmAudioBuffer->data(), PCM_AUDIO_BUFFER_SIZE, 0);
+		if (result != AAC_DEC_OK) {
+			return NULL;
+		}
+	}
+
+	return pcmAudioBuffer;
+}
+
+sp<Buffer> AacDecoder::hexStringToByteArray(const String& hexString) {
+	size_t byteArraySize = hexString.size() / 2;
+	sp<Buffer> byteArray = new Buffer(byteArraySize);
+	for(size_t i = 0; i < hexString.size(); i += 2) {
+		byteArray->data()[i / 2] = (uint8_t) strtol(hexString.substr(i, i + 2), NULL, 16);
+	}
+	return byteArray;
 }

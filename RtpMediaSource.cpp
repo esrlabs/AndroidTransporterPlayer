@@ -21,7 +21,6 @@
 #include "mindroid/net/DatagramSocket.h"
 #include "mindroid/util/Buffer.h"
 #include "MediaAssembler.h"
-#include "rtcp/Rtcp.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -35,7 +34,6 @@ RtpMediaSource::RtpMediaSource(uint16_t port) :
 		mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
 	mNetReceiver = new NetReceiver(port, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET));
-//	mRtcp = new Rtcp(obtainMessage(NOTIFY_RTCP_SR));
 }
 
 RtpMediaSource::~RtpMediaSource() {
@@ -62,14 +60,8 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
             break;
         }
         case NOTIFY_RTCP_PACKET: {
-//			sp<Bundle> bundle = message->metaData();
-//			sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
-//			mRtcp->onPacketReceived(buffer);
-            break;
-        }
-        case NOTIFY_RTCP_SR: {
-//			sp<Bundle> bundle = message->metaData();
-//			sp<Rtcp::SenderReport> sr = bundle->getObject<Rtcp::SenderReport>("RTCP-SR-Packet");
+			sp<Bundle> bundle = message->metaData();
+			sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
             break;
         }
         default:

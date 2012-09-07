@@ -19,6 +19,7 @@
 #include "mindroid/os/Bundle.h"
 #include "PcmMediaAssembler.h"
 #include "AacMediaAssembler.h"
+#include "AacDecoder.h"
 #include "AvcMediaAssembler.h"
 #include <stdio.h>
 #include <sys/resource.h>
@@ -56,7 +57,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		} else if (audioType == AAC_AUDIO_TYPE) {
 			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
 			mRtpAudioSource->start(new AacMediaAssembler(mRtpAudioSource->getMediaQueue(),
-					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER), message->metaData()->getString("CodecConfig")));
+					new AacDecoder(message->metaData()->getString("CodecConfig"), mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER))));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
 			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
 			msg->sendToTarget();
