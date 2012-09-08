@@ -54,7 +54,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
 			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
 			msg->sendToTarget();
-		} else if (audioType == AAC_AUDIO_TYPE) {
+		} else if (audioType == AAC_AUDIO_TYPE_1 || audioType == AAC_AUDIO_TYPE_2) {
 			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
 			mRtpAudioSource->start(new AacMediaAssembler(mRtpAudioSource->getMediaQueue(),
 					new AacDecoder(message->metaData()->getString("CodecConfig"), mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER))));

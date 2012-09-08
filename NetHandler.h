@@ -47,7 +47,8 @@ private:
 	static const uint16_t RTP_AUDIO_SOURCE_PORT = 56096;
 	static const uint16_t RTP_VIDEO_SOURCE_PORT = 56098;
 	static const uint8_t PCM_AUDIO_TYPE = 10;
-	static const uint8_t AAC_AUDIO_TYPE = 97;
+	static const uint8_t AAC_AUDIO_TYPE_1 = 96;
+	static const uint8_t AAC_AUDIO_TYPE_2 = 97;
 	static const uint8_t AVC_VIDEO_TYPE = 96;
 
 	sp<RPiPlayer> mPlayer;
