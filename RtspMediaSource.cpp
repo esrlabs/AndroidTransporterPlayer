@@ -25,7 +25,8 @@ using namespace mindroid;
 
 RtspMediaSource::RtspMediaSource(const sp<Handler>& netHandler) :
 		mNetHandler(netHandler),
-		mCSeq(1) {
+		mCSeq(1),
+		mTeardownDone(false) {
 }
 
 RtspMediaSource::~RtspMediaSource() {
@@ -148,7 +149,8 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	}
 	case TEARDOWN_AUDIO_TRACK: {
 		mAudioSessionId = NULL;
-		if (mVideoSessionId == NULL) {
+		if (mVideoSessionId == NULL && !mTeardownDone) {
+			mTeardownDone = true;
 			sp<Bundle> bundle = message->metaData();
 			sp<Message> reply = bundle->getObject<Message>("Reply");
 			mNetReceiver->stop();
@@ -159,7 +161,8 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	}
 	case TEARDOWN_VIDEO_TRACK: {
 		mVideoSessionId = NULL;
-		if (mAudioSessionId == NULL) {
+		if (mAudioSessionId == NULL && !mTeardownDone) {
+			mTeardownDone = true;
 			sp<Bundle> bundle = message->metaData();
 			sp<Message> reply = bundle->getObject<Message>("Reply");
 			mNetReceiver->stop();
@@ -309,6 +312,9 @@ void RtspMediaSource::teardownMediaSource(const sp<mindroid::Message>& reply) {
 		String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
 				mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++, mAudioSessionId.c_str());
 		mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+
+		// Tear down the audio track if we do not receive a response within 2 seconds.
+		sendMessageDelayed(msg, TIMEOUT_2_SECONDS);
 	}
 	if (mVideoSessionId != NULL) {
 		sp<Message> msg = obtainMessage(TEARDOWN_VIDEO_TRACK);
@@ -317,6 +323,9 @@ void RtspMediaSource::teardownMediaSource(const sp<mindroid::Message>& reply) {
 		String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
 				mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++, mVideoSessionId.c_str());
 		mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+
+		// Tear down the video track if we do not receive a response within 2 seconds.
+		sendMessageDelayed(msg, TIMEOUT_2_SECONDS);
 	}
 }
 
@@ -347,7 +356,7 @@ void RtspMediaSource::NetReceiver::run() {
 	while (!isInterrupted()) {
 		bool result = mSocket->readPacketHeader(rtspHeader);
 		if (result) {
-			if (rtspHeader != NULL) {
+			if (rtspHeader != NULL && !rtspHeader->empty()) {
 				uint32_t seqNum = atoi((*rtspHeader)[String("CSeq").toLowerCase()]);
 				sp<Message> reply = mMediaSource->removePendingRequest(seqNum);
 				if ((*rtspHeader)[String("ResultCode")] == "200") {

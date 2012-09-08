@@ -70,6 +70,8 @@ private:
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
 	};
 
+	static const uint32_t TIMEOUT_2_SECONDS = 2000; //ms
+
 	sp<RtspSocket> getSocket() { return mSocket; }
 	void describeMediaSource();
 	void onDescribeMediaSource(const sp<mindroid::Buffer>& desc);
@@ -94,6 +96,7 @@ private:
 	mindroid::String mVideoMediaSource;
 	mindroid::String mVideoSessionId;
 	uint32_t mCSeq;
+	bool mTeardownDone;
 
 	mindroid::Lock mLock;
 	std::map< uint32_t, sp<mindroid::Message> > mPendingRequests;

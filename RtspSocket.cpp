@@ -67,12 +67,14 @@ bool RtspSocket::readPacketHeader(RtspHeader*& rtspHeader) {
 				sp< List<String> > resultCode = line.split(" ");
 				if (resultCode->size() < 2) {
 					delete rtspHeader;
-					return NULL;
+					rtspHeader = NULL;
+					return false;
 				} else {
 					List<String>::iterator itr = resultCode->begin();
 					if (itr->trim() != "RTSP/1.0") {
 						delete rtspHeader;
-						return NULL;
+						rtspHeader = NULL;
+						return false;
 					} else {
 						++itr;
 						(*rtspHeader)[String("ResultCode")] = itr->trim();
