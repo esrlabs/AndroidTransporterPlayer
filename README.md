@@ -20,7 +20,7 @@
     cd ..
     cd AndroidTransporterPlayer
     make -f Makefile.RPi
-    ./AndroidTransporterPlayer rtsp://&lt;IP-Address&gt;:9000/test.sdp
+    ./AndroidTransporterPlayer rtsp://<IP-Address>:9000/test.sdp
 
 ###Usage
 &lt;IP-Address&gt; is always the IP address of the VLC streaming server.
