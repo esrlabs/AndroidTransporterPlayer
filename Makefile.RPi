@@ -3,7 +3,7 @@ CXX       := g++
 LD        := g++
 CFLAGS    := -D__ARM_CPU_ARCH__ -D__ARMv6_CPU_ARCH__ -fPIC -O2
 LDFLAGS   := 
-LIBS	  := -L/opt/vc/lib -L/opt/vc/src/hello_pi/libs/ilclient -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lilclient -lmindroid -laac
+LIBS	  := -L/opt/vc/lib -L/opt/vc/src/hello_pi/libs/ilclient -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lilclient -lmindroid -laac -lpthread -lrt
 
 SRCS      := $(wildcard *.cpp)
 OBJS      := $(patsubst %.cpp,out/%.o,$(SRCS))

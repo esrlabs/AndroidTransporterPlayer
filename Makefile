@@ -6,7 +6,7 @@ LD        := $(TOOLCHAIN)/bin/arm-linux-gnueabihf-g++
 ROOTFS    := $(BUILDROOT)/rootfs
 CFLAGS    := -D__ARM_CPU_ARCH__ -D__ARMv6_CPU_ARCH__ -march=armv6 -mfpu=vfp -mfloat-abi=hard -O2
 LDFLAGS   := 
-LIBS      := -L$(ROOTFS)/opt/vc/lib -L$(ROOTFS)/opt/vc/src/hello_pi/libs/ilclient -L../Mindroid -L../fdk-aac -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lilclient -lmindroid -laac
+LIBS      := -L$(ROOTFS)/opt/vc/lib -L$(ROOTFS)/opt/vc/src/hello_pi/libs/ilclient -L../Mindroid -L../fdk-aac -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lilclient -lmindroid -laac -lpthread -lrt
 
 SRCS      := $(wildcard *.cpp)
 OBJS      := $(patsubst %.cpp,out/%.o,$(SRCS))
