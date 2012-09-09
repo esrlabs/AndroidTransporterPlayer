@@ -49,7 +49,8 @@ private:
 	static const uint8_t PCM_AUDIO_TYPE = 10;
 	static const uint8_t AAC_AUDIO_TYPE_1 = 96;
 	static const uint8_t AAC_AUDIO_TYPE_2 = 97;
-	static const uint8_t AVC_VIDEO_TYPE = 96;
+	static const uint8_t AVC_VIDEO_TYPE_1 = 96;
+	static const uint8_t AVC_VIDEO_TYPE_2 = 97;
 
 	sp<RPiPlayer> mPlayer;
 	sp<RtspMediaSource> mRtspMediaSource;

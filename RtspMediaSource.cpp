@@ -240,6 +240,23 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					}
 					++itr;
 				}
+			} else if (line.startsWith("a=rtpmap")) {
+				sp< List<String> > strings = line.split(" ");
+				List<String>::iterator itr = strings->begin();
+				if (strings->size() < 2) {
+					audioMediaDesc = NULL;
+					videoMediaDesc = NULL;
+				}
+				if (!audioMediaDesc.isEmpty()) {
+					if (*(++itr) != "mpeg4-generic/44100/2") {
+						audioMediaDesc = NULL;
+						// TODO: add support for other audio streams
+					}
+				} else if (!videoMediaDesc.isEmpty()) {
+					if (*(++itr) != "H264/90000") {
+						videoMediaDesc = NULL;
+					}
+				}
 			} else if (line.startsWith("a=control:")) {
 				if (!audioMediaDesc.isEmpty()) {
 					mAudioMediaSource = line.substr(String::size("a=control:")).trim();
