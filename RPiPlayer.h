@@ -77,7 +77,7 @@ private:
 	static const uint32_t BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 8;
 	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 4096; // 2048 samples -> 46ms
-	static const uint32_t MIN_FILLED_AUDIO_BUFFERS_AT_START = 6;
+	static const uint32_t MIN_FILLED_AUDIO_BUFFERS_AT_START = 3;
 	ILCLIENT_T* mAudioClient;
 	COMPONENT_T* mAudioRenderer;
 	COMPONENT_T* mAudioComponentList[2];
