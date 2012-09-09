@@ -34,7 +34,7 @@ void shutdownHook(int signal) {
 int main(int argc, char** argv)
 {
 	if (argc < 2) {
-		printf("Usage: rtsp://<Host>:<Port>/<SDP-File>\n");
+		printf("Usage: AndroidTransporterPlayer rtsp://<Host>:<Port>/<SDP-File>\n");
 		return -1;
 	}
 
