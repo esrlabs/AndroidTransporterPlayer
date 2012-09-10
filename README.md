@@ -5,8 +5,8 @@
     cd /opt/vc/src/hello_pi/libs/ilclient
     make
     cd /home/pi
-    mkdir AndroidTransporter
-    cd AndroidTransporter
+    mkdir Projects
+    cd Projects
     git clone https://github.com/esrlabs/AndroidTransporterPlayer.git
     git clone https://github.com/esrlabs/Mindroid.git
     git clone https://github.com/esrlabs/fdk-aac.git
