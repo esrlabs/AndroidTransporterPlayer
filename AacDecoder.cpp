@@ -52,26 +52,26 @@ sp<Buffer> AacDecoder::decodeBuffer(sp<Buffer> buffer) {
 		return NULL;
 	}
 
-    UCHAR* aacInputBuffers[2];
-    UINT aacInputBufferSizes[2] = {0};
-    UINT numValidBytes[2] = {0};
+	UCHAR* aacInputBuffers[2];
+	UINT aacInputBufferSizes[2] = {0};
+	UINT numValidBytes[2] = {0};
 
 	sp<Buffer> pcmAudioBuffer = new Buffer(PCM_AUDIO_BUFFER_SIZE);
 
 	aacInputBuffers[0] = (UCHAR*) (buffer->data() + AAC_HEADER_SIZE);
-    aacInputBufferSizes[0] = buffer->size() - AAC_HEADER_SIZE;
-    numValidBytes[0] = buffer->size() - AAC_HEADER_SIZE;
+	aacInputBufferSizes[0] = buffer->size() - AAC_HEADER_SIZE;
+	numValidBytes[0] = buffer->size() - AAC_HEADER_SIZE;
 
 	AAC_DECODER_ERROR result;
 	result = aacDecoder_Fill(mAacDecoder, aacInputBuffers, aacInputBufferSizes, numValidBytes);
 	if (result == AAC_DEC_OK) {
 		result = aacDecoder_DecodeFrame(mAacDecoder, (INT_PCM*) pcmAudioBuffer->data(), PCM_AUDIO_BUFFER_SIZE, 0);
-		if (result != AAC_DEC_OK) {
-			return NULL;
+		if (result == AAC_DEC_OK) {
+			return pcmAudioBuffer;
 		}
 	}
 
-	return pcmAudioBuffer;
+	return NULL;
 }
 
 sp<Buffer> AacDecoder::hexStringToByteArray(const String& hexString) {

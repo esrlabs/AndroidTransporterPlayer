@@ -187,6 +187,8 @@ void RtspMediaSource::describeMediaSource() {
 }
 
 void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
+	// TODO: Build a SDPParser class that parses the service desc correctly :)
+
 	mPendingTracks.clear();
 
 	String mediaSourceDesc((char*)desc->data(), desc->size());

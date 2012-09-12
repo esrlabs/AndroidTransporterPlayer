@@ -41,7 +41,7 @@ public:
 	static const uint32_t NOTIFY_PLAY_AUDIO_BUFFER = 3;
 	static const uint32_t NOTIFY_PLAY_VIDEO_BUFFER = 4;
 	static const uint32_t STOP_MEDIA_SOURCE_DONE = 5;
-	static const uint32_t NOTIFY_OMX_EMPTY_BUFFER_DONE = 6;
+	static const uint32_t NOTIFY_AUDIO_OMX_EMPTY_BUFFER_DONE = 6;
 
 	RPiPlayer();
 	virtual ~RPiPlayer();

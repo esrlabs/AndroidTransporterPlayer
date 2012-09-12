@@ -90,7 +90,7 @@ uint32_t PcmMediaAssembler::getNextSeqNum() const {
 void PcmMediaAssembler::swapPcmDataEndianess(const sp<mindroid::Buffer>& buffer) {
 	uint16_t* ptr = (uint16_t*) buffer->data();
 	for (size_t i = 0; i < buffer->size(); i += 2) {
-		*ptr = (*ptr >> 8) | ((*ptr	<< 8) & 0xFF00);
+		*ptr = (*ptr >> 8) | ((*ptr << 8) & 0xFF00);
 		ptr++;
 	}
 }

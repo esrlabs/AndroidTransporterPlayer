@@ -1,6 +1,6 @@
 BUILDROOT := ..
 TOOLCHAIN := $(BUILDROOT)/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian
-CC		  := $(TOOLCHAIN)/bin/arm-linux-gnueabihf-gcc
+CC        := $(TOOLCHAIN)/bin/arm-linux-gnueabihf-gcc
 CXX       := $(TOOLCHAIN)/bin/arm-linux-gnueabihf-g++
 LD        := $(TOOLCHAIN)/bin/arm-linux-gnueabihf-g++
 ROOTFS    := $(BUILDROOT)/rootfs

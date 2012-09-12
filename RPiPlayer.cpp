@@ -100,7 +100,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 //		finalizeOMXVideo();
 		break;
 	}
-	case NOTIFY_OMX_EMPTY_BUFFER_DONE: {
+	case NOTIFY_AUDIO_OMX_EMPTY_BUFFER_DONE: {
 		OMX_BUFFERHEADERTYPE* omxBuffer = ilclient_get_input_buffer(mAudioRenderer, 100, 0);
 		assert(omxBuffer != NULL);
 		mOmxAudioEmptyBuffers->push_back(omxBuffer);
@@ -260,7 +260,7 @@ void RPiPlayer::onPlayVideoBuffers() {
 void RPiPlayer::onEmptyBufferDone(void* args, COMPONENT_T* component) {
 	RPiPlayer* self = (RPiPlayer*) args;
 	if (component == self->mAudioRenderer) {
-		self->obtainMessage(NOTIFY_OMX_EMPTY_BUFFER_DONE)->sendToTarget();
+		self->obtainMessage(NOTIFY_AUDIO_OMX_EMPTY_BUFFER_DONE)->sendToTarget();
 	} else if (component == self->mVideoDecoder) {
 		self->obtainMessage(NOTIFY_PLAY_VIDEO_BUFFER)->sendToTarget();
 	} else {
