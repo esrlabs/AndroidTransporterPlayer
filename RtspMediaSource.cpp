@@ -250,7 +250,7 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					videoMediaDesc = NULL;
 				}
 				if (!audioMediaDesc.isEmpty()) {
-					if (*(++itr) != "mpeg4-generic/44100/2") {
+					if (*(++itr) != "mpeg4-generic/44100/2" && *(++itr) != "L16/44100/2") {
 						audioMediaDesc = NULL;
 						// TODO: add support for other audio streams
 					}
