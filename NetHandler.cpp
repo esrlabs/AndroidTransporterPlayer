@@ -16,11 +16,14 @@
 
 #include "NetHandler.h"
 #include "RPiPlayer.h"
-#include "mindroid/os/Bundle.h"
 #include "PcmMediaAssembler.h"
 #include "AacMediaAssembler.h"
 #include "AacDecoder.h"
 #include "AvcMediaAssembler.h"
+#include "Utils.h"
+#include "mindroid/os/Bundle.h"
+#include "mindroid/lang/String.h"
+#include "mindroid/util/Buffer.h"
 #include <stdio.h>
 #include <sys/resource.h>
 
@@ -71,8 +74,25 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 	case START_VIDEO_TRACK: {
 		uint32_t videoType;
 		message->metaData()->fillUInt32("Type", videoType);
+		String transportProtocol;
+		message->metaData()->fillString("TransportProtocol", transportProtocol);
+		String serverHostName;
+		message->metaData()->fillString("ServerHostName", serverHostName);
+		uint16_t serverPort;
+		message->metaData()->fillUInt16("ServerPorts", serverPort);
+
+		String profileId;
+		message->metaData()->fillString("ProfileId", profileId);
+		String spropParams;
+		message->metaData()->fillString("SpropParams", spropParams);
+		buildCodecSpecificData(profileId, spropParams);
+
 		if (videoType == AVC_VIDEO_TYPE_1 || videoType == AVC_VIDEO_TYPE_2) {
-			mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
+			if (transportProtocol == "UDP") {
+				mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
+			} else {
+				mRtpVideoSource = new RtpMediaSource(serverHostName, 1742);
+			}
 			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_VIDEO_TRACK);
@@ -102,4 +122,92 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		mPlayer->stop();
 		break;
 	}
+}
+
+sp<Buffer> NetHandler::buildCodecSpecificData(String profileId, String spropParams) {
+	sp<Buffer> profileLevelId = Utils::hexStringToByteArray(profileId);
+
+//	size_t numSeqParameterSets = 0;
+//	size_t totalSeqParameterSetSize = 0;
+//	size_t numPicParameterSets = 0;
+//	size_t totalPicParameterSetSize = 0;
+//
+//	sp< List< sp<Buffer> > > paramSets = new List< sp<Buffer> >();
+//
+//	size_t start = 0;
+//	for (;;) {
+//		ssize_t commaPos = spropParams.indexOf(",", start);
+//		size_t end = (commaPos < 0) ? spropParams.size() : commaPos;
+//
+//		String nalString(spropParams, start, end - start);
+//		sp<Buffer> nal = Utils::decodeBase64(nalString);
+//
+//		uint8_t nalType = nal->data()[0] & 0x1f;
+//		if (numSeqParameterSets == 0) {
+//		} else if (numPicParameterSets > 0) {
+//		}
+//		if (nalType == 7) {
+//			++numSeqParameterSets;
+//			totalSeqParameterSetSize += nal->size();
+//		} else  {
+//			++numPicParameterSets;
+//			totalPicParameterSetSize += nal->size();
+//		}
+//
+//		paramSets->push_back(nal);
+//
+//		if (commaPos < 0) {
+//			break;
+//		}
+//
+//		start = commaPos + 1;
+//	}
+//
+//	size_t csdSize =
+//		1 + 3 + 1 + 1
+//		+ 2 * numSeqParameterSets + totalSeqParameterSetSize
+//		+ 1 + 2 * numPicParameterSets + totalPicParameterSetSize;
+//
+//	sp<Buffer> csd = new Buffer(csdSize);
+//	uint8_t *out = csd->data();
+//
+//	*out++ = 0x01;  // configurationVersion
+//	memcpy(out, profileLevelId->data(), 3);
+//	out += 3;
+//	*out++ = (0x3f << 2) | 1;  // lengthSize == 2 bytes
+//	*out++ = 0xe0 | numSeqParameterSets;
+//
+//	for (size_t i = 0; i < numSeqParameterSets; ++i) {
+//		sp<Buffer> nal = paramSets.editItemAt(i);
+//
+//		*out++ = nal->size() >> 8;
+//		*out++ = nal->size() & 0xff;
+//
+//		memcpy(out, nal->data(), nal->size());
+//
+//		out += nal->size();
+//
+//		if (i == 0) {
+//			FindAVCDimensions(nal, width, height);
+//		}
+//	}
+//
+//	*out++ = numPicParameterSets;
+//
+//	for (size_t i = 0; i < numPicParameterSets; ++i) {
+//		sp<Buffer> nal = paramSets.editItemAt(i + numSeqParameterSets);
+//
+//		*out++ = nal->size() >> 8;
+//		*out++ = nal->size() & 0xff;
+//
+//		memcpy(out, nal->data(), nal->size());
+//
+//		out += nal->size();
+//	}
+//
+//	// hexdump(csd->data(), csd->size());
+//
+//	return csd;
+
+	return NULL;
 }

@@ -23,6 +23,10 @@
 #include "RtpMediaSource.h"
 
 class RPiPlayer;
+namespace mindroid {
+class String;
+class Buffer;
+}
 
 using mindroid::sp;
 
@@ -51,6 +55,8 @@ private:
 	static const uint8_t AAC_AUDIO_TYPE_2 = 97;
 	static const uint8_t AVC_VIDEO_TYPE_1 = 96;
 	static const uint8_t AVC_VIDEO_TYPE_2 = 97;
+
+	sp<mindroid::Buffer> buildCodecSpecificData(mindroid::String profileId, mindroid::String spropParams);
 
 	sp<RPiPlayer> mPlayer;
 	sp<RtspMediaSource> mRtspMediaSource;

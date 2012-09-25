@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Refactorings by E.S.R.Labs GmbH
+ * Additions and refactorings by E.S.R.Labs GmbH
  */
 
 #ifndef RTPMEDIASOURCE_H_
@@ -28,6 +28,7 @@ namespace mindroid {
 class Message;
 class Buffer;
 class DatagramSocket;
+class Socket;
 }
 
 using mindroid::sp;
@@ -36,7 +37,8 @@ class RtpMediaSource :
 	public mindroid::Handler
 {
 public:
-	RtpMediaSource(uint16_t port);
+	RtpMediaSource(uint16_t localPort); // UDP
+	RtpMediaSource(mindroid::String serverHostName, uint16_t serverPort); // TCP
 	virtual ~RtpMediaSource();
 
 	bool start(sp<MediaAssembler> mediaAssembler);
@@ -48,23 +50,56 @@ public:
 
 private:
 	class NetReceiver :
-		public mindroid::Thread
+			public mindroid::Thread
 	{
 	public:
-		NetReceiver(uint16_t port, sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
+		NetReceiver(sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
+		virtual void run() = 0;
+		virtual void stop() = 0;
+
+	protected:
+		sp<mindroid::Message> mNotifyRtpPacket;
+		sp<mindroid::Message> mNotifyRtcpPacket;
+		int mPipe[2];
+
+		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
+	};
+
+	class UdpNetReceiver :
+			public NetReceiver
+	{
+	public:
+		UdpNetReceiver(uint16_t port, sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
 		virtual void run();
-		void stop();
+		virtual void stop();
 
 	private:
 		static const uint32_t MAX_UDP_PACKET_SIZE = 65536;
 
 		sp<mindroid::DatagramSocket> mRtpSocket;
 		sp<mindroid::DatagramSocket> mRtcpSocket;
-		sp<mindroid::Message> mNotifyRtpPacket;
-		sp<mindroid::Message> mNotifyRtcpPacket;
-		int mPipe[2];
 
-		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
+		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(UdpNetReceiver)
+	};
+
+	class TcpNetReceiver :
+			public NetReceiver
+	{
+	public:
+		TcpNetReceiver(mindroid::String hostName, uint16_t port, sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
+		virtual void run();
+		virtual void stop();
+
+	private:
+		static const uint32_t MAX_TCP_PACKET_SIZE = 65536;
+
+		sp<mindroid::Socket> mRtpSocket;
+		sp<mindroid::Socket> mRtcpSocket;
+		mindroid::String mHostName;
+		uint16_t mPort;
+		bool mFirstTime;
+
+		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(TcpNetReceiver)
 	};
 
 	static const uint32_t NOTIFY_RTP_PACKET = 0;

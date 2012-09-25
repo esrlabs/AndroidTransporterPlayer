@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Refactorings by E.S.R.Labs GmbH
+ * Additions and refactorings by E.S.R.Labs GmbH
  */
 
 #ifndef PCMMEDIAASSEMBLER_H_

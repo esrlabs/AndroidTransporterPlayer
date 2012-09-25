@@ -16,35 +16,22 @@
  * Additions and refactorings by E.S.R.Labs GmbH
  */
 
-#ifndef MEDIAASSEMBLER_H_
-#define MEDIAASSEMBLER_H_
+#ifndef UTILS_H_
+#define UTILS_H_
 
 #include "mindroid/os/Ref.h"
 
-class MediaAssembler :
-	public mindroid::Ref
-{
+namespace mindroid {
+class String;
+class Buffer;
+}
+
+using mindroid::sp;
+
+class Utils {
 public:
-	enum Status {
-		OK,
-		PACKET_FAILURE,
-		SEQ_NUMBER_FAILURE,
-	};
-
-	static const uint64_t TIME_PERIOD_20MS = 20000000LL;
-
-	MediaAssembler();
-	virtual ~MediaAssembler() { }
-	virtual Status assembleMediaData() = 0;
-	virtual uint32_t getNextSeqNum() const = 0;
-	void processMediaQueue();
-
-protected:
-	uint32_t mSeqNumber;
-	bool mInitSeqNumber;
-
-private:
-	uint64_t mFirstSeqNumberFailureTime;
+	static sp<mindroid::Buffer> hexStringToByteArray(const mindroid::String& hexString);
+	static sp<mindroid::Buffer> decodeBase64(const mindroid::String& base64String);
 };
 
-#endif /* MEDIAASSEMBLER_H_ */
+#endif /* UTILS_H_ */

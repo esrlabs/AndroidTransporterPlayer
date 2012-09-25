@@ -40,7 +40,6 @@ private:
 	static const uint32_t PCM_AUDIO_BUFFER_SIZE = 4096;
 
 	sp<mindroid::Buffer> decodeBuffer(sp<mindroid::Buffer> buffer);
-	sp<mindroid::Buffer> hexStringToByteArray(const mindroid::String& hexString);
 
 	sp<mindroid::Message> mNotifyBuffer;
 	HANDLE_AACDECODER mAacDecoder;

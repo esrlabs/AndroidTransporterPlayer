@@ -46,6 +46,11 @@ public:
 	static const uint32_t TEARDOWN_VIDEO_TRACK = 8;
 	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 9;
 
+	enum TransportProtocol {
+		UDP,
+		TCP
+	};
+
 	RtspMediaSource(const sp<mindroid::Handler>& netHandler);
 	virtual ~RtspMediaSource();
 
@@ -91,16 +96,20 @@ private:
 	mindroid::String mHost;
 	mindroid::String mPort;
 	mindroid::String mSdpFile;
+	mindroid::String mServerHostName;
 	mindroid::String mAudioMediaSource;
 	mindroid::String mAudioSessionId;
+	TransportProtocol mAudioMediaSourceTransportProtocol;
 	mindroid::String mVideoMediaSource;
 	mindroid::String mVideoSessionId;
+	TransportProtocol mVideoMediaSourceTransportProtocol;
+	uint16_t mVideoMediaSourceServerPorts[2];
 	uint32_t mCSeq;
 	bool mTeardownDone;
 
 	mindroid::Lock mLock;
 	std::map< uint32_t, sp<mindroid::Message> > mPendingRequests;
-	mindroid::List< sp<mindroid::Message> > mPendingTracks;
+	sp< mindroid::List< sp<mindroid::Message> > > mPendingTracks;
 
 	friend class NetReceiver;
 };

@@ -15,6 +15,7 @@
  */
 
 #include "AacDecoder.h"
+#include "Utils.h"
 #include <mindroid/os/Message.h>
 #include <mindroid/util/Buffer.h>
 
@@ -25,7 +26,7 @@ AacDecoder::AacDecoder(const String& codecConfig, const sp<mindroid::Message>& n
 	mAacDecoder = aacDecoder_Open(TT_MP4_RAW, 1);
 	aacDecoder_SetParam(mAacDecoder, AAC_PCM_OUTPUT_INTERLEAVED, 1);
 
-	sp<Buffer> aacCodecConfig = hexStringToByteArray(codecConfig);
+	sp<Buffer> aacCodecConfig = Utils::hexStringToByteArray(codecConfig);
 	UCHAR* configBuffers[2];
 	UINT configBufferSizes[2] = {0};
 	configBuffers[0] = aacCodecConfig->data();
@@ -72,13 +73,4 @@ sp<Buffer> AacDecoder::decodeBuffer(sp<Buffer> buffer) {
 	}
 
 	return NULL;
-}
-
-sp<Buffer> AacDecoder::hexStringToByteArray(const String& hexString) {
-	size_t byteArraySize = hexString.size() / 2;
-	sp<Buffer> byteArray = new Buffer(byteArraySize);
-	for(size_t i = 0; i < hexString.size(); i += 2) {
-		byteArray->data()[i / 2] = (uint8_t) strtol(hexString.substr(i, i + 2), NULL, 16);
-	}
-	return byteArray;
 }

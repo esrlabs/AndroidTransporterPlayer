@@ -26,7 +26,9 @@ using namespace mindroid;
 RtspMediaSource::RtspMediaSource(const sp<Handler>& netHandler) :
 		mNetHandler(netHandler),
 		mCSeq(1),
-		mTeardownDone(false) {
+		mTeardownDone(false),
+		mServerHostName("0.0.0.0") {
+	mPendingTracks = new List< sp<Message> >();
 }
 
 RtspMediaSource::~RtspMediaSource() {
@@ -56,7 +58,7 @@ bool RtspMediaSource::start(const String& url) {
 	}
 
 	mSocket = new RtspSocket();
-	if (!mSocket->connect(mHost.c_str(), atoi(mPort.c_str()))) {
+	if (mSocket->connect(mHost.c_str(), atoi(mPort.c_str())) != 0) {
 		return false;
 	}
 
@@ -129,6 +131,20 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;
 		if ((*rtspHeader)[String("ResultCode")] == "200") {
 			mVideoSessionId = *(*rtspHeader)[String("Session").toLowerCase()].split(";")->begin();
+			sp< List<String> > parts = (*rtspHeader)[String("Transport").toLowerCase()].split(";");
+			List<String>::iterator itr = parts->begin();
+			while (itr != parts->end()) {
+				if (itr->startsWith("server_port=")) {
+					String portRange = itr->substr(String::size("server_port="));
+					sp< List<String> > ports = portRange.split("-");
+					if (ports->size() == 2) {
+						mVideoMediaSourceServerPorts[0] = atoi(ports->begin()->c_str());
+						mVideoMediaSourceServerPorts[1] = mVideoMediaSourceServerPorts[0] + 1;
+					}
+				}
+				++itr;
+			}
+
 			playVideoTrack();
 		} else {
 			// TODO: error handling
@@ -189,7 +205,7 @@ void RtspMediaSource::describeMediaSource() {
 void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 	// TODO: Build a SdpParser class that parses the service desc correctly :)
 
-	mPendingTracks.clear();
+	mPendingTracks->clear();
 
 	String mediaSourceDesc((char*)desc->data(), desc->size());
 	sp< List<String> > lines = mediaSourceDesc.split("\n");
@@ -198,7 +214,10 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 	String audioMediaDesc;
 	String videoMediaDesc;
 	String mediaType;
+	String profileId;
+	String spropParams;
 	String codecConfig;
+	TransportProtocol transportProtocol;
 
 	while (itr != lines->end()) {
 		String line = itr->trim();
@@ -211,6 +230,7 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 				mediaType = *(++itr);
 				if (protocol.trim() == "RTP/AVP") {
 					audioMediaDesc = line;
+					mAudioMediaSourceTransportProtocol = UDP;
 				} else {
 					audioMediaDesc = NULL;
 				}
@@ -223,6 +243,10 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 				mediaType = *(++itr);
 				if (protocol.trim() == "RTP/AVP") {
 					videoMediaDesc = line;
+					mVideoMediaSourceTransportProtocol = UDP;
+				} else if (protocol.trim() == "TCP/RTP/AVP") {
+					videoMediaDesc = line;
+					mVideoMediaSourceTransportProtocol = TCP;
 				} else {
 					videoMediaDesc = NULL;
 				}
@@ -236,7 +260,13 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 				sp< List<String> > strings = line.split(";");
 				List<String>::iterator itr = strings->begin();
 				while (itr != strings->end()) {
-					if (itr->trim().startsWith("config=")) {
+					if (itr->trim().startsWith("profile-level-id=")) {
+						ssize_t pos = itr->indexOf("=");
+						profileId = itr->substr(pos + 1);
+					} else if (itr->trim().startsWith("sprop-parameter-sets=")) {
+						ssize_t pos = itr->indexOf("=");
+						spropParams = itr->substr(pos + 1);
+					} else if (itr->trim().startsWith("config=")) {
 						ssize_t pos = itr->indexOf("=");
 						codecConfig = itr->substr(pos + 1);
 					}
@@ -265,21 +295,38 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					mAudioMediaSource = line.substr(String::size("a=control:")).trim();
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_AUDIO_TRACK);
 					msg->metaData()->putUInt32("Type", atoi(mediaType.c_str()));
+					msg->metaData()->putString("ProfileId", profileId);
+					msg->metaData()->putString("SpropParams", spropParams);
 					msg->metaData()->putString("CodecConfig", codecConfig);
-					mPendingTracks.push_back(msg);
+					msg->metaData()->putString("TransportProtocol", (mAudioMediaSourceTransportProtocol == UDP) ? "UDP" : "TCP");
+					msg->metaData()->putString("ServerHostName", mServerHostName);
+					mPendingTracks->push_back(msg);
 				} else if (!videoMediaDesc.isEmpty()) {
 					mVideoMediaSource = line.substr(String::size("a=control:")).trim();
 					sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_VIDEO_TRACK);
 					msg->metaData()->putUInt32("Type", atoi(mediaType.c_str()));
+					msg->metaData()->putString("ProfileId", profileId);
+					msg->metaData()->putString("SpropParams", spropParams);
 					msg->metaData()->putString("CodecConfig", codecConfig);
-					mPendingTracks.push_back(msg);
+					msg->metaData()->putString("TransportProtocol", (mVideoMediaSourceTransportProtocol == UDP) ? "UDP" : "TCP");
+					msg->metaData()->putString("ServerHostName", mServerHostName);
+					msg->metaData()->putUInt16("ServerPorts", mVideoMediaSourceServerPorts[0]);
+					mPendingTracks->push_back(msg);
+				}
+			}
+		} else if (line.startsWith("c=")) {
+			sp< List<String> > strings = line.substr(String::size("c=")).trim().split(" ");
+			if (strings->size() >= 3) {
+				List<String>::iterator itr = strings->begin();
+				if (*itr++ == "IN" && *itr++ == "IP4") {
+					mServerHostName = *itr;
 				}
 			}
 		}
 		++itr;
 	}
 
-	if (mPendingTracks.size() > 0) {
+	if (mPendingTracks->size() > 0) {
 		startPendingTracks();
 	} else {
 		printf("The media source does not offer any audio or video streams.\n");
@@ -288,10 +335,10 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 }
 
 void RtspMediaSource::startPendingTracks() {
-	List< sp<Message> >::iterator itr = mPendingTracks.begin();
-	if (itr != mPendingTracks.end()) {
+	List< sp<Message> >::iterator itr = mPendingTracks->begin();
+	if (itr != mPendingTracks->end()) {
 		sp<Message> msg = (*itr);
-		mPendingTracks.erase(itr);
+		mPendingTracks->erase(itr);
 		msg->sendToTarget();
 	}
 }
