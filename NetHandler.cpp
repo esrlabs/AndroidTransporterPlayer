@@ -50,15 +50,16 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 	case START_AUDIO_TRACK: {
 		uint32_t audioType;
 		message->metaData()->fillUInt32("Type", audioType);
+		sp<Message> null;
 		if (audioType == PCM_AUDIO_TYPE) {
-			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
+			mRtpAudioSource = new RtpMediaSource(null, RTP_AUDIO_SOURCE_PORT);
 			mRtpAudioSource->start(new PcmMediaAssembler(mRtpAudioSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER)));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
 			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
 			msg->sendToTarget();
 		} else if (audioType == AAC_AUDIO_TYPE_1 || audioType == AAC_AUDIO_TYPE_2) {
-			mRtpAudioSource = new RtpMediaSource(RTP_AUDIO_SOURCE_PORT);
+			mRtpAudioSource = new RtpMediaSource(null, RTP_AUDIO_SOURCE_PORT);
 			mRtpAudioSource->start(new AacMediaAssembler(mRtpAudioSource->getMediaQueue(),
 					new AacDecoder(message->metaData()->getString("CodecConfig"), mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER))));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
@@ -88,13 +89,13 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		buildCodecSpecificData(profileId, spropParams);
 
 		if (videoType == AVC_VIDEO_TYPE_1 || videoType == AVC_VIDEO_TYPE_2) {
+			sp<Message> notifyVideoBuffer = mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER);
 			if (transportProtocol == "UDP") {
-				mRtpVideoSource = new RtpMediaSource(RTP_VIDEO_SOURCE_PORT);
+				mRtpVideoSource = new RtpMediaSource(notifyVideoBuffer, RTP_VIDEO_SOURCE_PORT);
 			} else {
-				mRtpVideoSource = new RtpMediaSource(serverHostName, 1742);
+				mRtpVideoSource = new RtpMediaSource(notifyVideoBuffer, serverHostName, 1742);
 			}
-			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(),
-					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
+			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(), notifyVideoBuffer));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_VIDEO_TRACK);
 			msg->arg1 = RTP_VIDEO_SOURCE_PORT;
 			msg->sendToTarget();

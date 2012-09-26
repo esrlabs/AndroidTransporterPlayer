@@ -37,8 +37,8 @@ class RtpMediaSource :
 	public mindroid::Handler
 {
 public:
-	RtpMediaSource(uint16_t localPort); // UDP
-	RtpMediaSource(mindroid::String serverHostName, uint16_t serverPort); // TCP
+	RtpMediaSource(const sp<mindroid::Message>& notifyVideoBuffer, uint16_t localPort); // UDP
+	RtpMediaSource(const sp<mindroid::Message>& notifyVideoBuffer, mindroid::String serverHostName, uint16_t serverPort); // TCP
 	virtual ~RtpMediaSource();
 
 	bool start(sp<MediaAssembler> mediaAssembler);
@@ -53,13 +53,14 @@ private:
 			public mindroid::Thread
 	{
 	public:
-		NetReceiver(sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
+		NetReceiver(const sp<mindroid::Message>& notifyRtpPacket, const sp<mindroid::Message>& notifyRtcpPacket, const sp<mindroid::Message>& notifyVideoBuffer);
 		virtual void run() = 0;
 		virtual void stop() = 0;
 
 	protected:
 		sp<mindroid::Message> mNotifyRtpPacket;
 		sp<mindroid::Message> mNotifyRtcpPacket;
+		sp<mindroid::Message> mNotifyVideoBuffer;
 		int mPipe[2];
 
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
@@ -69,7 +70,7 @@ private:
 			public NetReceiver
 	{
 	public:
-		UdpNetReceiver(uint16_t port, sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
+		UdpNetReceiver(uint16_t port, const sp<mindroid::Message>& notifyRtpPacket, const sp<mindroid::Message>& notifyRtcpPacket, const sp<mindroid::Message>& notifyVideoBuffer);
 		virtual void run();
 		virtual void stop();
 
@@ -86,7 +87,7 @@ private:
 			public NetReceiver
 	{
 	public:
-		TcpNetReceiver(mindroid::String hostName, uint16_t port, sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket);
+		TcpNetReceiver(mindroid::String hostName, uint16_t port, const sp<mindroid::Message>& notifyRtpPacket, const sp<mindroid::Message>& notifyRtcpPacket, const sp<mindroid::Message>& notifyVideoBuffer);
 		virtual void run();
 		virtual void stop();
 

@@ -31,18 +31,18 @@
 
 using namespace mindroid;
 
-RtpMediaSource::RtpMediaSource(uint16_t localPort) :
+RtpMediaSource::RtpMediaSource(const sp<Message>& notifyVideoBuffer, uint16_t localPort) :
 		mRtpPacketCounter(0),
 		mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
-	mNetReceiver = new UdpNetReceiver(localPort, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET));
+	mNetReceiver = new UdpNetReceiver(localPort, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET), notifyVideoBuffer);
 }
 
-RtpMediaSource::RtpMediaSource(String serverHostName, uint16_t serverPort) :
+RtpMediaSource::RtpMediaSource(const sp<Message>& notifyVideoBuffer, String serverHostName, uint16_t serverPort) :
 		mRtpPacketCounter(0),
 		mHighestSeqNumber(0) {
 	mQueue = new List< sp<Buffer> >();
-	mNetReceiver = new TcpNetReceiver(serverHostName, serverPort, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET));
+	mNetReceiver = new TcpNetReceiver(serverHostName, serverPort, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET), notifyVideoBuffer);
 }
 
 RtpMediaSource::~RtpMediaSource() {
@@ -78,9 +78,10 @@ void RtpMediaSource::handleMessage(const sp<Message>& message) {
     }
 }
 
-RtpMediaSource::NetReceiver::NetReceiver(sp<mindroid::Message> notifyRtpPacket, sp<mindroid::Message> notifyRtcpPacket) :
+RtpMediaSource::NetReceiver::NetReceiver(const sp<Message>& notifyRtpPacket, const sp<Message>& notifyRtcpPacket, const sp<Message>& notifyVideoBuffer) :
 		mNotifyRtpPacket(notifyRtpPacket),
-		mNotifyRtcpPacket(notifyRtcpPacket) {
+		mNotifyRtcpPacket(notifyRtcpPacket),
+		mNotifyVideoBuffer(notifyVideoBuffer) {
 	// This pipe is used to unblock the 'select' call when stopping the NetReceiver.
 	pipe(mPipe);
 	int flags = fcntl(mPipe[0], F_GETFL);
@@ -91,8 +92,8 @@ RtpMediaSource::NetReceiver::NetReceiver(sp<mindroid::Message> notifyRtpPacket, 
 	fcntl(mPipe[1], F_SETFL, flags);
 }
 
-RtpMediaSource::UdpNetReceiver::UdpNetReceiver(uint16_t port, sp<Message> notifyRtpPacket, sp<Message> notifyRtcpPacket) :
-		NetReceiver(notifyRtpPacket, notifyRtcpPacket) {
+RtpMediaSource::UdpNetReceiver::UdpNetReceiver(uint16_t port, const sp<Message>& notifyRtpPacket, const sp<Message>& notifyRtcpPacket, const sp<Message>& notifyVideoBuffer) :
+		NetReceiver(notifyRtpPacket, notifyRtcpPacket, notifyVideoBuffer) {
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
@@ -158,8 +159,8 @@ void RtpMediaSource::UdpNetReceiver::run() {
 	}
 }
 
-RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port, sp<Message> notifyRtpPacket, sp<Message> notifyRtcpPacket) :
-		NetReceiver(notifyRtpPacket, notifyRtcpPacket),
+RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port, const sp<Message>& notifyRtpPacket, const sp<Message>& notifyRtcpPacket, const sp<Message>& notifyVideoBuffer) :
+		NetReceiver(notifyRtpPacket, notifyRtcpPacket, notifyVideoBuffer),
 		mHostName(hostName),
 		mPort(port) {
 	mRtpSocket = new Socket();
@@ -244,21 +245,20 @@ void RtpMediaSource::TcpNetReceiver::run() {
 			uint16_t bePacketSize;
 			if (FD_ISSET(mRtpSocket->getId(), &sockets)) {
 				if (mFirstTime) {
-					printf("firsttime\n");
 					sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
 					memcpy(buffer->data(), csd1, sizeof(csd1));
 					buffer->setRange(0, sizeof(csd1));
-					sp<Message> msg = mNotifyRtpPacket->dup();
+					sp<Message> msg = mNotifyVideoBuffer->dup();
 					sp<Bundle> bundle = msg->metaData();
-					bundle->putObject("RTP-Packet", buffer);
+					bundle->putObject("Access-Unit", buffer);
 					msg->sendToTarget();
 
 					sp<Buffer> buffer2(new Buffer(MAX_TCP_PACKET_SIZE));
 					memcpy(buffer2->data(), csd2, sizeof(csd2));
 					buffer2->setRange(0, sizeof(csd2));
-					sp<Message> msg2 = mNotifyRtpPacket->dup();
+					sp<Message> msg2 = mNotifyVideoBuffer->dup();
 					sp<Bundle> bundle2 = msg2->metaData();
-					bundle2->putObject("RTP-Packet", buffer2);
+					bundle2->putObject("Access-Unit", buffer2);
 					msg2->sendToTarget();
 
 					mFirstTime = false;
@@ -269,7 +269,6 @@ void RtpMediaSource::TcpNetReceiver::run() {
 				mRtpSocket->setBlockingMode(true);
 				mRtpSocket->readFully((uint8_t*) &bePacketSize, 2);
 				ssize_t size = mRtpSocket->readFully(buffer->data(), ntohs(bePacketSize));
-				printf("data: %d\n", size);
 				mRtpSocket->setBlockingMode(false);
 				if (size > 0) {
 					buffer->setRange(0, size);
