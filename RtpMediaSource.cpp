@@ -143,35 +143,8 @@ void RtpMediaSource::TcpNetReceiver::run() {
 	rc = mRtpSocket->connect(mHostName.c_str(), mPort);
 	rc = mRtcpSocket->connect(mHostName.c_str(), mPort + 1);
 
-//	int rc = -1;
-//	while(rc != 0) {
-//		printf("connecting rtp\n");
-//		rc = mRtpSocket->connect(mHostName.c_str(), mPort);
-//		if (rc == 0) {
-//			break;
-//		}
-//		mRtpSocket->close();
-//		mRtpSocket = new Socket();
-//		Thread::sleep(1000);
-//	}
-//	rc = -1;
-//	while(rc != 0) {
-//		printf("connecting rctp\n");
-//		rc = mRtcpSocket->connect(mHostName.c_str(), mPort + 1);
-//		if (rc == 0) {
-//			break;
-//		}
-//		mRtcpSocket->close();
-//		mRtcpSocket = new Socket();
-//		Thread::sleep(1000);
-//	}
-
-	printf("....\n");
-
 	mRtpSocket->setBlockingMode(false);
 	mRtcpSocket->setBlockingMode(false);
-
-
 
 	while (!isInterrupted()) {
 		fd_set sockets;
