@@ -42,6 +42,12 @@ RtpMediaSource::NetReceiver::NetReceiver() {
 	fcntl(mPipe[1], F_SETFL, flags);
 }
 
+void RtpMediaSource::NetReceiver::stop() {
+	// mNotifyRtpPacket holds a (circular) dependency to the RtpMediaSource handler.
+	mNotifyRtpPacket = NULL;
+	mNotifyRtcpPacket = NULL;
+}
+
 void RtpMediaSource::NetReceiver::setHandler(const sp<Handler>& hander) {
 	mNotifyRtpPacket = hander->obtainMessage(NOTIFY_RTP_PACKET);
 	mNotifyRtcpPacket = hander->obtainMessage(NOTIFY_RTCP_PACKET);
@@ -61,9 +67,7 @@ void RtpMediaSource::UdpNetReceiver::stop() {
 	mRtcpSocket->close();
 	write(mPipe[1], "X", 1);
 	join();
-	// mNotifyRtpPacket holds a (circular) dependency to the RtpMediaSource handler.
-	mNotifyRtpPacket = NULL;
-	mNotifyRtcpPacket = NULL;
+	NetReceiver::stop();
 }
 
 void RtpMediaSource::UdpNetReceiver::run() {
@@ -129,9 +133,7 @@ void RtpMediaSource::TcpNetReceiver::stop() {
 	mRtcpSocket->close();
 	write(mPipe[1], "X", 1);
 	join();
-	// mNotifyRtpPacket holds a (circular) dependency to the RtpMediaSource handler.
-	mNotifyRtpPacket = NULL;
-	mNotifyRtcpPacket = NULL;
+	NetReceiver::stop();
 }
 
 void RtpMediaSource::TcpNetReceiver::run() {

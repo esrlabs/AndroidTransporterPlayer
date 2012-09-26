@@ -43,7 +43,7 @@ public:
 	public:
 		NetReceiver();
 		virtual void run() = 0;
-		virtual void stop() = 0;
+		virtual void stop();
 		void setHandler(const sp<Handler>& hander);
 
 	protected:
