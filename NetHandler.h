@@ -24,7 +24,6 @@
 
 class RPiPlayer;
 namespace mindroid {
-class String;
 class Buffer;
 }
 
@@ -56,7 +55,8 @@ private:
 	static const uint8_t AVC_VIDEO_TYPE_1 = 96;
 	static const uint8_t AVC_VIDEO_TYPE_2 = 97;
 
-	sp<mindroid::Buffer> buildCodecSpecificData(mindroid::String profileId, mindroid::String spropParams);
+	sp<mindroid::Buffer> buildSequenceParameterSet();
+	sp<mindroid::Buffer> buildPictureParameterSet();
 
 	sp<RPiPlayer> mPlayer;
 	sp<RtspMediaSource> mRtspMediaSource;

@@ -96,14 +96,14 @@ private:
 	mindroid::String mHost;
 	mindroid::String mPort;
 	mindroid::String mSdpFile;
-	mindroid::String mServerHostName;
+	mindroid::String mServerIpAddress;
 	mindroid::String mAudioMediaSource;
 	mindroid::String mAudioSessionId;
-	TransportProtocol mAudioMediaSourceTransportProtocol;
+	TransportProtocol mAudioTransportProtocol;
 	mindroid::String mVideoMediaSource;
 	mindroid::String mVideoSessionId;
-	TransportProtocol mVideoMediaSourceTransportProtocol;
-	uint16_t mVideoMediaSourceServerPorts[2];
+	TransportProtocol mVideoTransportProtocol;
+	uint16_t mVideoServerPorts[2];
 	uint32_t mCSeq;
 	bool mTeardownDone;
 

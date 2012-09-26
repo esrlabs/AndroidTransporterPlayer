@@ -31,7 +31,6 @@ using mindroid::sp;
 class Utils {
 public:
 	static sp<mindroid::Buffer> hexStringToByteArray(const mindroid::String& hexString);
-	static sp<mindroid::Buffer> decodeBase64(const mindroid::String& base64String);
 };
 
 #endif /* UTILS_H_ */

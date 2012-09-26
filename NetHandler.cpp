@@ -50,16 +50,15 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 	case START_AUDIO_TRACK: {
 		uint32_t audioType;
 		message->metaData()->fillUInt32("Type", audioType);
-		sp<Message> null;
 		if (audioType == PCM_AUDIO_TYPE) {
-			mRtpAudioSource = new RtpMediaSource(null, RTP_AUDIO_SOURCE_PORT);
+			mRtpAudioSource = new RtpMediaSource(new RtpMediaSource::UdpNetReceiver(RTP_AUDIO_SOURCE_PORT));
 			mRtpAudioSource->start(new PcmMediaAssembler(mRtpAudioSource->getMediaQueue(),
 					mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER)));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
 			msg->arg1 = RTP_AUDIO_SOURCE_PORT;
 			msg->sendToTarget();
 		} else if (audioType == AAC_AUDIO_TYPE_1 || audioType == AAC_AUDIO_TYPE_2) {
-			mRtpAudioSource = new RtpMediaSource(null, RTP_AUDIO_SOURCE_PORT);
+			mRtpAudioSource = new RtpMediaSource(new RtpMediaSource::UdpNetReceiver(RTP_AUDIO_SOURCE_PORT));
 			mRtpAudioSource->start(new AacMediaAssembler(mRtpAudioSource->getMediaQueue(),
 					new AacDecoder(message->metaData()->getString("CodecConfig"), mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_AUDIO_BUFFER))));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_AUDIO_TRACK);
@@ -77,25 +76,34 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		message->metaData()->fillUInt32("Type", videoType);
 		String transportProtocol;
 		message->metaData()->fillString("TransportProtocol", transportProtocol);
-		String serverHostName;
-		message->metaData()->fillString("ServerHostName", serverHostName);
+		String serverIpAddress;
+		message->metaData()->fillString("ServerHostName", serverIpAddress);
 		uint16_t serverPort;
 		message->metaData()->fillUInt16("ServerPorts", serverPort);
-
 		String profileId;
 		message->metaData()->fillString("ProfileId", profileId);
 		String spropParams;
 		message->metaData()->fillString("SpropParams", spropParams);
-		buildCodecSpecificData(profileId, spropParams);
 
 		if (videoType == AVC_VIDEO_TYPE_1 || videoType == AVC_VIDEO_TYPE_2) {
-			sp<Message> notifyVideoBuffer = mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER);
+			sp<Buffer> sps = buildSequenceParameterSet();
+			sp<Message> spsMessage = mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER);
+			sp<Bundle> spsBundle = spsMessage->metaData();
+			spsBundle->putObject("Access-Unit", sps);
+			spsMessage->sendToTarget();
+
+			sp<Buffer> pps = buildPictureParameterSet();
+			sp<Message> ppsMessage = mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER);
+			sp<Bundle> ppsBundle = ppsMessage->metaData();
+			ppsBundle->putObject("Access-Unit", pps);
+			ppsMessage->sendToTarget();
+
 			if (transportProtocol == "UDP") {
-				mRtpVideoSource = new RtpMediaSource(notifyVideoBuffer, RTP_VIDEO_SOURCE_PORT);
+				mRtpVideoSource = new RtpMediaSource(new RtpMediaSource::UdpNetReceiver(RTP_VIDEO_SOURCE_PORT));
 			} else {
-				mRtpVideoSource = new RtpMediaSource(notifyVideoBuffer, serverHostName, 1742);
+				mRtpVideoSource = new RtpMediaSource(new RtpMediaSource::TcpNetReceiver(serverIpAddress, serverPort));
 			}
-			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(), notifyVideoBuffer));
+			mRtpVideoSource->start(new AvcMediaAssembler(mRtpVideoSource->getMediaQueue(), mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER)));
 			sp<Message> msg = mRtspMediaSource->obtainMessage(RtspMediaSource::START_VIDEO_TRACK);
 			msg->arg1 = RTP_VIDEO_SOURCE_PORT;
 			msg->sendToTarget();
@@ -125,90 +133,20 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 	}
 }
 
-sp<Buffer> NetHandler::buildCodecSpecificData(String profileId, String spropParams) {
-	sp<Buffer> profileLevelId = Utils::hexStringToByteArray(profileId);
+sp<Buffer> NetHandler::buildSequenceParameterSet() {
+	const uint8_t sps[] = { 0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80, 0x28, 0x95, 0xa0, 0x14, 0x01, 0x94, 0x40 };
 
-//	size_t numSeqParameterSets = 0;
-//	size_t totalSeqParameterSetSize = 0;
-//	size_t numPicParameterSets = 0;
-//	size_t totalPicParameterSetSize = 0;
-//
-//	sp< List< sp<Buffer> > > paramSets = new List< sp<Buffer> >();
-//
-//	size_t start = 0;
-//	for (;;) {
-//		ssize_t commaPos = spropParams.indexOf(",", start);
-//		size_t end = (commaPos < 0) ? spropParams.size() : commaPos;
-//
-//		String nalString(spropParams, start, end - start);
-//		sp<Buffer> nal = Utils::decodeBase64(nalString);
-//
-//		uint8_t nalType = nal->data()[0] & 0x1f;
-//		if (numSeqParameterSets == 0) {
-//		} else if (numPicParameterSets > 0) {
-//		}
-//		if (nalType == 7) {
-//			++numSeqParameterSets;
-//			totalSeqParameterSetSize += nal->size();
-//		} else  {
-//			++numPicParameterSets;
-//			totalPicParameterSetSize += nal->size();
-//		}
-//
-//		paramSets->push_back(nal);
-//
-//		if (commaPos < 0) {
-//			break;
-//		}
-//
-//		start = commaPos + 1;
-//	}
-//
-//	size_t csdSize =
-//		1 + 3 + 1 + 1
-//		+ 2 * numSeqParameterSets + totalSeqParameterSetSize
-//		+ 1 + 2 * numPicParameterSets + totalPicParameterSetSize;
-//
-//	sp<Buffer> csd = new Buffer(csdSize);
-//	uint8_t *out = csd->data();
-//
-//	*out++ = 0x01;  // configurationVersion
-//	memcpy(out, profileLevelId->data(), 3);
-//	out += 3;
-//	*out++ = (0x3f << 2) | 1;  // lengthSize == 2 bytes
-//	*out++ = 0xe0 | numSeqParameterSets;
-//
-//	for (size_t i = 0; i < numSeqParameterSets; ++i) {
-//		sp<Buffer> nal = paramSets.editItemAt(i);
-//
-//		*out++ = nal->size() >> 8;
-//		*out++ = nal->size() & 0xff;
-//
-//		memcpy(out, nal->data(), nal->size());
-//
-//		out += nal->size();
-//
-//		if (i == 0) {
-//			FindAVCDimensions(nal, width, height);
-//		}
-//	}
-//
-//	*out++ = numPicParameterSets;
-//
-//	for (size_t i = 0; i < numPicParameterSets; ++i) {
-//		sp<Buffer> nal = paramSets.editItemAt(i + numSeqParameterSets);
-//
-//		*out++ = nal->size() >> 8;
-//		*out++ = nal->size() & 0xff;
-//
-//		memcpy(out, nal->data(), nal->size());
-//
-//		out += nal->size();
-//	}
-//
-//	// hexdump(csd->data(), csd->size());
-//
-//	return csd;
+	sp<Buffer> buffer(new Buffer(sizeof(sps)));
+	memcpy(buffer->data(), sps, sizeof(sps));
+	buffer->setRange(0, sizeof(sps));
+	return buffer;
+}
 
-	return NULL;
+sp<Buffer> NetHandler::buildPictureParameterSet() {
+	const uint8_t pps[] = { 0x00, 0x00, 0x00, 0x01, 0x68, 0xce, 0x3c, 0x80 };
+
+	sp<Buffer> buffer(new Buffer(sizeof(pps)));
+	memcpy(buffer->data(), pps, sizeof(pps));
+	buffer->setRange(0, sizeof(pps));
+	return buffer;
 }

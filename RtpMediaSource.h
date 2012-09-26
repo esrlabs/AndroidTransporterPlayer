@@ -37,30 +37,18 @@ class RtpMediaSource :
 	public mindroid::Handler
 {
 public:
-	RtpMediaSource(const sp<mindroid::Message>& notifyVideoBuffer, uint16_t localPort); // UDP
-	RtpMediaSource(const sp<mindroid::Message>& notifyVideoBuffer, mindroid::String serverHostName, uint16_t serverPort); // TCP
-	virtual ~RtpMediaSource();
-
-	bool start(sp<MediaAssembler> mediaAssembler);
-	void stop();
-
-	virtual void handleMessage(const sp<mindroid::Message>& message);
-
-	sp< mindroid::List< sp<mindroid::Buffer> > > getMediaQueue() { return mQueue; }
-
-private:
 	class NetReceiver :
 			public mindroid::Thread
 	{
 	public:
-		NetReceiver(const sp<mindroid::Message>& notifyRtpPacket, const sp<mindroid::Message>& notifyRtcpPacket, const sp<mindroid::Message>& notifyVideoBuffer);
+		NetReceiver();
 		virtual void run() = 0;
 		virtual void stop() = 0;
+		void setHandler(const sp<Handler>& hander);
 
 	protected:
 		sp<mindroid::Message> mNotifyRtpPacket;
 		sp<mindroid::Message> mNotifyRtcpPacket;
-		sp<mindroid::Message> mNotifyVideoBuffer;
 		int mPipe[2];
 
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
@@ -70,7 +58,7 @@ private:
 			public NetReceiver
 	{
 	public:
-		UdpNetReceiver(uint16_t port, const sp<mindroid::Message>& notifyRtpPacket, const sp<mindroid::Message>& notifyRtcpPacket, const sp<mindroid::Message>& notifyVideoBuffer);
+		UdpNetReceiver(uint16_t port);
 		virtual void run();
 		virtual void stop();
 
@@ -87,7 +75,7 @@ private:
 			public NetReceiver
 	{
 	public:
-		TcpNetReceiver(mindroid::String hostName, uint16_t port, const sp<mindroid::Message>& notifyRtpPacket, const sp<mindroid::Message>& notifyRtcpPacket, const sp<mindroid::Message>& notifyVideoBuffer);
+		TcpNetReceiver(mindroid::String hostName, uint16_t port);
 		virtual void run();
 		virtual void stop();
 
@@ -98,11 +86,18 @@ private:
 		sp<mindroid::Socket> mRtcpSocket;
 		mindroid::String mHostName;
 		uint16_t mPort;
-		bool mFirstTime;
 
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(TcpNetReceiver)
 	};
 
+	RtpMediaSource(sp<NetReceiver> netReceiver);
+	virtual ~RtpMediaSource();
+	bool start(sp<MediaAssembler> mediaAssembler);
+	void stop();
+	virtual void handleMessage(const sp<mindroid::Message>& message);
+	sp< mindroid::List< sp<mindroid::Buffer> > > getMediaQueue() { return mQueue; }
+
+private:
 	static const uint32_t NOTIFY_RTP_PACKET = 0;
 	static const uint32_t NOTIFY_RTCP_PACKET = 1;
 	static const uint32_t RTP_HEADER_SIZE = 12;

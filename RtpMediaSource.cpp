@@ -31,57 +31,7 @@
 
 using namespace mindroid;
 
-RtpMediaSource::RtpMediaSource(const sp<Message>& notifyVideoBuffer, uint16_t localPort) :
-		mRtpPacketCounter(0),
-		mHighestSeqNumber(0) {
-	mQueue = new List< sp<Buffer> >();
-	mNetReceiver = new UdpNetReceiver(localPort, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET), notifyVideoBuffer);
-}
-
-RtpMediaSource::RtpMediaSource(const sp<Message>& notifyVideoBuffer, String serverHostName, uint16_t serverPort) :
-		mRtpPacketCounter(0),
-		mHighestSeqNumber(0) {
-	mQueue = new List< sp<Buffer> >();
-	mNetReceiver = new TcpNetReceiver(serverHostName, serverPort, obtainMessage(NOTIFY_RTP_PACKET), obtainMessage(NOTIFY_RTCP_PACKET), notifyVideoBuffer);
-}
-
-RtpMediaSource::~RtpMediaSource() {
-}
-
-bool RtpMediaSource::start(sp<MediaAssembler> mediaAssembler) {
-	mMediaAssembler = mediaAssembler;
-	return mNetReceiver->start();
-}
-
-void RtpMediaSource::stop() {
-	mNetReceiver->stop();
-	removeCallbacksAndMessages();
-}
-
-void RtpMediaSource::handleMessage(const sp<Message>& message) {
-    switch (message->what) {
-        case NOTIFY_RTP_PACKET: {
-            sp<Bundle> bundle = message->metaData();
-            sp<Buffer> buffer = bundle->getObject<Buffer>("RTP-Packet");
-            if (parseRtpHeader(buffer) == 0) {
-                processRtpPayload(buffer);
-            }
-            break;
-        }
-        case NOTIFY_RTCP_PACKET: {
-			sp<Bundle> bundle = message->metaData();
-			sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
-            break;
-        }
-        default:
-            break;
-    }
-}
-
-RtpMediaSource::NetReceiver::NetReceiver(const sp<Message>& notifyRtpPacket, const sp<Message>& notifyRtcpPacket, const sp<Message>& notifyVideoBuffer) :
-		mNotifyRtpPacket(notifyRtpPacket),
-		mNotifyRtcpPacket(notifyRtcpPacket),
-		mNotifyVideoBuffer(notifyVideoBuffer) {
+RtpMediaSource::NetReceiver::NetReceiver() {
 	// This pipe is used to unblock the 'select' call when stopping the NetReceiver.
 	pipe(mPipe);
 	int flags = fcntl(mPipe[0], F_GETFL);
@@ -92,8 +42,12 @@ RtpMediaSource::NetReceiver::NetReceiver(const sp<Message>& notifyRtpPacket, con
 	fcntl(mPipe[1], F_SETFL, flags);
 }
 
-RtpMediaSource::UdpNetReceiver::UdpNetReceiver(uint16_t port, const sp<Message>& notifyRtpPacket, const sp<Message>& notifyRtcpPacket, const sp<Message>& notifyVideoBuffer) :
-		NetReceiver(notifyRtpPacket, notifyRtcpPacket, notifyVideoBuffer) {
+void RtpMediaSource::NetReceiver::setHandler(const sp<Handler>& hander) {
+	mNotifyRtpPacket = hander->obtainMessage(NOTIFY_RTP_PACKET);
+	mNotifyRtcpPacket = hander->obtainMessage(NOTIFY_RTCP_PACKET);
+}
+
+RtpMediaSource::UdpNetReceiver::UdpNetReceiver(uint16_t port) {
 	mRtpSocket = new DatagramSocket(port);
 	mRtcpSocket = new DatagramSocket(port + 1);
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
@@ -159,8 +113,7 @@ void RtpMediaSource::UdpNetReceiver::run() {
 	}
 }
 
-RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port, const sp<Message>& notifyRtpPacket, const sp<Message>& notifyRtcpPacket, const sp<Message>& notifyVideoBuffer) :
-		NetReceiver(notifyRtpPacket, notifyRtcpPacket, notifyVideoBuffer),
+RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port) :
 		mHostName(hostName),
 		mPort(port) {
 	mRtpSocket = new Socket();
@@ -168,8 +121,6 @@ RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port, c
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
 	int size = 256 * 1024;
 	setsockopt(mRtpSocket->getId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-
-	mFirstTime = true;
 }
 
 void RtpMediaSource::TcpNetReceiver::stop() {
@@ -220,8 +171,7 @@ void RtpMediaSource::TcpNetReceiver::run() {
 	mRtpSocket->setBlockingMode(false);
 	mRtcpSocket->setBlockingMode(false);
 
-	uint8_t csd1[] = { 0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80, 0x28, 0x95, 0xa0, 0x14, 0x01, 0x94, 0x40 };
-	uint8_t csd2[] = { 0x00, 0x00, 0x00, 0x01, 0x68, 0xce, 0x3c, 0x80 };
+
 
 	while (!isInterrupted()) {
 		fd_set sockets;
@@ -244,27 +194,6 @@ void RtpMediaSource::TcpNetReceiver::run() {
 		if (result > 0) {
 			uint16_t bePacketSize;
 			if (FD_ISSET(mRtpSocket->getId(), &sockets)) {
-				if (mFirstTime) {
-					sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
-					memcpy(buffer->data(), csd1, sizeof(csd1));
-					buffer->setRange(0, sizeof(csd1));
-					sp<Message> msg = mNotifyVideoBuffer->dup();
-					sp<Bundle> bundle = msg->metaData();
-					bundle->putObject("Access-Unit", buffer);
-					msg->sendToTarget();
-
-					sp<Buffer> buffer2(new Buffer(MAX_TCP_PACKET_SIZE));
-					memcpy(buffer2->data(), csd2, sizeof(csd2));
-					buffer2->setRange(0, sizeof(csd2));
-					sp<Message> msg2 = mNotifyVideoBuffer->dup();
-					sp<Bundle> bundle2 = msg2->metaData();
-					bundle2->putObject("Access-Unit", buffer2);
-					msg2->sendToTarget();
-
-					mFirstTime = false;
-					Thread::sleep(100);
-				}
-
 				sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
 				mRtpSocket->setBlockingMode(true);
 				mRtpSocket->readFully((uint8_t*) &bePacketSize, 2);
@@ -293,6 +222,47 @@ void RtpMediaSource::TcpNetReceiver::run() {
 			}
 		}
 	}
+}
+
+RtpMediaSource::RtpMediaSource(sp<NetReceiver> netReceiver) :
+		mRtpPacketCounter(0),
+		mHighestSeqNumber(0),
+		mNetReceiver(netReceiver) {
+	mQueue = new List< sp<Buffer> >();
+	mNetReceiver->setHandler(this);
+}
+
+RtpMediaSource::~RtpMediaSource() {
+}
+
+bool RtpMediaSource::start(sp<MediaAssembler> mediaAssembler) {
+	mMediaAssembler = mediaAssembler;
+	return mNetReceiver->start();
+}
+
+void RtpMediaSource::stop() {
+	mNetReceiver->stop();
+	removeCallbacksAndMessages();
+}
+
+void RtpMediaSource::handleMessage(const sp<Message>& message) {
+    switch (message->what) {
+        case NOTIFY_RTP_PACKET: {
+            sp<Bundle> bundle = message->metaData();
+            sp<Buffer> buffer = bundle->getObject<Buffer>("RTP-Packet");
+            if (parseRtpHeader(buffer) == 0) {
+                processRtpPayload(buffer);
+            }
+            break;
+        }
+        case NOTIFY_RTCP_PACKET: {
+			sp<Bundle> bundle = message->metaData();
+			sp<Buffer> buffer = bundle->getObject<Buffer>("RTCP-Packet");
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 int RtpMediaSource::parseRtpHeader(const sp<Buffer>& buffer) {

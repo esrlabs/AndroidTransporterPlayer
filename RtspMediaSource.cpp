@@ -27,7 +27,7 @@ RtspMediaSource::RtspMediaSource(const sp<Handler>& netHandler) :
 		mNetHandler(netHandler),
 		mCSeq(1),
 		mTeardownDone(false),
-		mServerHostName("0.0.0.0") {
+		mServerIpAddress("0.0.0.0") {
 	mPendingTracks = new List< sp<Message> >();
 }
 
@@ -138,8 +138,8 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 					String portRange = itr->substr(String::size("server_port="));
 					sp< List<String> > ports = portRange.split("-");
 					if (ports->size() == 2) {
-						mVideoMediaSourceServerPorts[0] = atoi(ports->begin()->c_str());
-						mVideoMediaSourceServerPorts[1] = mVideoMediaSourceServerPorts[0] + 1;
+						mVideoServerPorts[0] = atoi(ports->begin()->c_str());
+						mVideoServerPorts[1] = mVideoServerPorts[0] + 1;
 					}
 				}
 				++itr;
@@ -230,7 +230,7 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 				mediaType = *(++itr);
 				if (protocol.trim() == "RTP/AVP") {
 					audioMediaDesc = line;
-					mAudioMediaSourceTransportProtocol = UDP;
+					mAudioTransportProtocol = UDP;
 				} else {
 					audioMediaDesc = NULL;
 				}
@@ -243,10 +243,10 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 				mediaType = *(++itr);
 				if (protocol.trim() == "RTP/AVP") {
 					videoMediaDesc = line;
-					mVideoMediaSourceTransportProtocol = UDP;
+					mVideoTransportProtocol = UDP;
 				} else if (protocol.trim() == "TCP/RTP/AVP") {
 					videoMediaDesc = line;
-					mVideoMediaSourceTransportProtocol = TCP;
+					mVideoTransportProtocol = TCP;
 				} else {
 					videoMediaDesc = NULL;
 				}
@@ -298,8 +298,8 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					msg->metaData()->putString("ProfileId", profileId);
 					msg->metaData()->putString("SpropParams", spropParams);
 					msg->metaData()->putString("CodecConfig", codecConfig);
-					msg->metaData()->putString("TransportProtocol", (mAudioMediaSourceTransportProtocol == UDP) ? "UDP" : "TCP");
-					msg->metaData()->putString("ServerHostName", mServerHostName);
+					msg->metaData()->putString("TransportProtocol", (mAudioTransportProtocol == UDP) ? "UDP" : "TCP");
+					msg->metaData()->putString("ServerIpAddress", mServerIpAddress);
 					mPendingTracks->push_back(msg);
 				} else if (!videoMediaDesc.isEmpty()) {
 					mVideoMediaSource = line.substr(String::size("a=control:")).trim();
@@ -308,9 +308,9 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					msg->metaData()->putString("ProfileId", profileId);
 					msg->metaData()->putString("SpropParams", spropParams);
 					msg->metaData()->putString("CodecConfig", codecConfig);
-					msg->metaData()->putString("TransportProtocol", (mVideoMediaSourceTransportProtocol == UDP) ? "UDP" : "TCP");
-					msg->metaData()->putString("ServerHostName", mServerHostName);
-					msg->metaData()->putUInt16("ServerPorts", mVideoMediaSourceServerPorts[0]);
+					msg->metaData()->putString("TransportProtocol", (mVideoTransportProtocol == UDP) ? "UDP" : "TCP");
+					msg->metaData()->putString("ServerIpAddress", mServerIpAddress);
+					msg->metaData()->putUInt16("ServerPorts", mVideoServerPorts[0]);
 					mPendingTracks->push_back(msg);
 				}
 			}
@@ -319,7 +319,7 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 			if (strings->size() >= 3) {
 				List<String>::iterator itr = strings->begin();
 				if (*itr++ == "IN" && *itr++ == "IP4") {
-					mServerHostName = *itr;
+					mServerIpAddress = *itr;
 				}
 			}
 		}
