@@ -77,7 +77,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		String transportProtocol;
 		message->metaData()->fillString("TransportProtocol", transportProtocol);
 		String serverIpAddress;
-		message->metaData()->fillString("ServerHostName", serverIpAddress);
+		message->metaData()->fillString("ServerIpAddress", serverIpAddress);
 		uint16_t serverPort;
 		message->metaData()->fillUInt16("ServerPorts", serverPort);
 		String profileId;

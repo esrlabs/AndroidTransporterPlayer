@@ -17,7 +17,9 @@
  */
 
 #include "RtpMediaSource.h"
+#include "mindroid/os/Looper.h"
 #include "mindroid/os/Handler.h"
+#include "mindroid/os/Closure.h"
 #include "mindroid/net/DatagramSocket.h"
 #include "mindroid/net/Socket.h"
 #include "mindroid/util/Buffer.h"
@@ -28,6 +30,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/resource.h>
+#include <errno.h>
 
 using namespace mindroid;
 
@@ -118,19 +121,15 @@ void RtpMediaSource::UdpNetReceiver::run() {
 }
 
 RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port) :
+		mLooper(NULL),
 		mHostName(hostName),
 		mPort(port) {
-	mRtpSocket = new Socket();
-	mRtcpSocket = new Socket();
-	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
-	int size = 256 * 1024;
-	setsockopt(mRtpSocket->getId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 }
 
 void RtpMediaSource::TcpNetReceiver::stop() {
-	interrupt();
-	mRtpSocket->close();
-	mRtcpSocket->close();
+	if (mLooper != NULL) {
+		mLooper->quit();
+	}
 	write(mPipe[1], "X", 1);
 	join();
 	NetReceiver::stop();
@@ -139,63 +138,203 @@ void RtpMediaSource::TcpNetReceiver::stop() {
 void RtpMediaSource::TcpNetReceiver::run() {
 	setpriority(PRIO_PROCESS, 0, -16);
 
-	// FIXME: Wait for the Android Transporter TCP server sockets.
-	Thread::sleep(1000);
-	int rc;
-	rc = mRtpSocket->connect(mHostName.c_str(), mPort);
-	rc = mRtcpSocket->connect(mHostName.c_str(), mPort + 1);
+	Looper::prepare();
+	mLooper = Looper::myLooper();
+	mNetReceiverImpl = new TcpNetReceiverImpl(mHostName, mPort);
+	mNetReceiverImpl->start(mNotifyRtpPacket, mNotifyRtcpPacket);
+	Looper::loop();
+}
 
-	mRtpSocket->setBlockingMode(false);
-	mRtcpSocket->setBlockingMode(false);
+RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::TcpNetReceiverImpl(String hostName, uint16_t port) :
+	mHostName(hostName),
+	mPort(port) {
+}
 
-	while (!isInterrupted()) {
-		fd_set sockets;
-		FD_ZERO(&sockets);
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::stop() {
+	if (mRtpSocket != NULL) {
+		mRtpSocket->close();
+	}
+	if (mRtcpSocket != NULL) {
+		mRtcpSocket->close();
+	}
+}
 
-		FD_SET(mRtpSocket->getId(), &sockets);
-		FD_SET(mRtcpSocket->getId(), &sockets);
-		FD_SET(mPipe[0], &sockets);
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::start(sp<mindroid::Message> msg1, sp<mindroid::Message> msg2) {
+	mNotifyRtpPacket = msg1;
+	mNotifyRtcpPacket = msg2;
 
-		int maxId = mRtpSocket->getId();
-		if (mRtcpSocket->getId() > maxId) {
-			maxId = mRtcpSocket->getId();
+	sp<Runnable> runnable = newRunnable<TcpNetReceiverImpl, sp<Socket>, String, uint16_t, uint16_t>(*this, &TcpNetReceiverImpl::asyncConnectToServer, new Socket(), mHostName, mPort, 0);
+	post(runnable);
+}
+
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::asyncConnectToServer(sp<Socket> socket, String hostName, uint16_t port, uint16_t retryCounter) {
+	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
+	int size = 256 * 1024;
+	setsockopt(socket->getId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+
+	socket->setBlockingMode(false);
+
+	sp<Message> reply = obtainMessage();
+	sp<Bundle> metaData = reply->metaData();
+	metaData->putObject("Socket", socket);
+	metaData->putString("HostName", hostName);
+	metaData->putUInt16("Port", port);
+	metaData->putUInt16("Retry-Counter", retryCounter);
+
+	int rc = socket->connect(hostName.c_str(), port);
+	if (rc < 0) {
+		if (errno == EINPROGRESS) {
+			reply->what = ON_CONNECT_TO_SERVER_PENDING;
+			sendMessageDelayed(reply, 1);
+			return;
 		}
-		if (mPipe[0] > maxId) {
-			maxId = mPipe[0];
-		}
 
-		int result = select(maxId + 1, &sockets, NULL, NULL, NULL);
+		reply->what = ON_CONNECT_TO_SERVER_RETRY;
+		sendMessageDelayed(reply, 10);
+	} else {
+		reply->what = ON_CONNECT_TO_SERVER_DONE;
+		reply->sendToTarget();
+	}
+}
 
-		if (result > 0) {
-			uint16_t bePacketSize;
-			if (FD_ISSET(mRtpSocket->getId(), &sockets)) {
-				sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
-				mRtpSocket->setBlockingMode(true);
-				mRtpSocket->readFully((uint8_t*) &bePacketSize, 2);
-				ssize_t size = mRtpSocket->readFully(buffer->data(), ntohs(bePacketSize));
-				mRtpSocket->setBlockingMode(false);
-				if (size > 0) {
-					buffer->setRange(0, size);
-					sp<Message> msg = mNotifyRtpPacket->dup();
-					sp<Bundle> bundle = msg->metaData();
-					bundle->putObject("RTP-Packet", buffer);
-					msg->sendToTarget();
-				}
-			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
-				sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
-				mRtcpSocket->setBlockingMode(true);
-				mRtcpSocket->readFully((uint8_t*) &bePacketSize, 2);
-				ssize_t size = mRtcpSocket->readFully(buffer->data(), ntohs(bePacketSize));
-				mRtcpSocket->setBlockingMode(false);
-				if (size > 0) {
-					buffer->setRange(0, size);
-					sp<Message> msg = mNotifyRtcpPacket->dup();
-					sp<Bundle> bundle = msg->metaData();
-					bundle->putObject("RTCP-Packet", buffer);
-					msg->sendToTarget();
-				}
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::onConnectToServerDone(const sp<Message>& message) {
+	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
+	String hostName = message->metaData()->getString("HostName");
+	uint16_t port;
+	message->metaData()->fillUInt16("Port", port);
+	printf("Connected to %s:%d\n", hostName.c_str(), port);
+
+	if (mRtpSocket == NULL) {
+		mRtpSocket = socket;
+		asyncConnectToServer(new Socket(), hostName, port + 1, 0);
+	} else {
+		mRtcpSocket = socket;
+		obtainMessage(ON_RECV_DATA)->sendToTarget();
+	}
+}
+
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::onConnectToServerPending(const sp<Message>& message) {
+	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
+
+	fd_set writeFds;
+	FD_ZERO(&writeFds);
+	FD_SET(socket->getId(), &writeFds);
+
+	int maxId = socket->getId();
+
+	int rc = select(maxId + 1, NULL, &writeFds, NULL, NULL);
+
+	int errorCode;
+	socklen_t ecSize = sizeof(errorCode);
+	getsockopt(socket->getId(), SOL_SOCKET, SO_ERROR, &errorCode, &ecSize);
+
+	sp<Message> reply = message;
+	if (errorCode != 0) {
+		reply->what = ON_CONNECT_TO_SERVER_RETRY;
+		uint16_t retryCounter;
+		reply->metaData()->fillUInt16("Retry-Counter", retryCounter);
+		reply->metaData()->remove("Retry-Counter");
+		reply->metaData()->putUInt16("Retry-Counter", retryCounter + 1);
+		sendMessageDelayed(reply, 10);
+	} else {
+		reply->what = ON_CONNECT_TO_SERVER_DONE;
+		reply->sendToTarget();
+	}
+}
+
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::onConnectToServerRetry(const sp<Message>& message) {
+	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
+	uint16_t retryCounter;
+	message->metaData()->fillUInt16("Retry-Counter", retryCounter);
+
+	if (retryCounter > 20) {
+		sp<Message> reply = message;
+		reply->what = ON_CONNECT_TO_SERVER_ERROR;
+		reply->sendToTarget();
+		return;
+	}
+
+	socket->close();
+	socket.clear();
+
+	String hostName = message->metaData()->getString("HostName");
+	uint16_t port;
+	message->metaData()->fillUInt16("Port", port);
+	asyncConnectToServer(new Socket(), hostName, port, retryCounter);
+}
+
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::onConnectToServerError(const sp<Message>& message) {
+	String hostName = message->metaData()->getString("HostName");
+	uint16_t port;
+	message->metaData()->fillUInt16("Port", port);
+	printf("Cannot connect to %s:%d\n", hostName.c_str(), port);
+}
+
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::onReceiveData(const sp<Message>& message) {
+	fd_set readFds;
+	FD_ZERO(&readFds);
+	FD_SET(mRtpSocket->getId(), &readFds);
+	FD_SET(mRtcpSocket->getId(), &readFds);
+
+	int maxId = mRtpSocket->getId();
+	if (mRtcpSocket->getId() > maxId) {
+		maxId = mRtcpSocket->getId();
+	}
+
+	int rc = select(maxId + 1, &readFds, NULL, NULL, NULL);
+
+	if (rc > 0) {
+		uint16_t bePacketSize;
+		if (FD_ISSET(mRtpSocket->getId(), &readFds)) {
+			sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
+			mRtpSocket->setBlockingMode(true);
+			mRtpSocket->readFully((uint8_t*) &bePacketSize, 2);
+			ssize_t size = mRtpSocket->readFully(buffer->data(), ntohs(bePacketSize));
+			mRtpSocket->setBlockingMode(false);
+			if (size > 0) {
+				buffer->setRange(0, size);
+				sp<Message> msg = mNotifyRtpPacket->dup();
+				sp<Bundle> bundle = msg->metaData();
+				bundle->putObject("RTP-Packet", buffer);
+				msg->sendToTarget();
 			}
 		}
+		if (FD_ISSET(mRtcpSocket->getId(), &readFds)) {
+			sp<Buffer> buffer(new Buffer(MAX_TCP_PACKET_SIZE));
+			mRtcpSocket->setBlockingMode(true);
+			mRtcpSocket->readFully((uint8_t*) &bePacketSize, 2);
+			ssize_t size = mRtcpSocket->readFully(buffer->data(), ntohs(bePacketSize));
+			mRtcpSocket->setBlockingMode(false);
+			if (size > 0) {
+				buffer->setRange(0, size);
+				sp<Message> msg = mNotifyRtpPacket->dup();
+				sp<Bundle> bundle = msg->metaData();
+				bundle->putObject("RTP-Packet", buffer);
+				msg->sendToTarget();
+			}
+		}
+	}
+
+	message->sendToTarget();
+}
+
+void RtpMediaSource::TcpNetReceiver::TcpNetReceiverImpl::handleMessage(const sp<Message>& message) {
+	switch (message->what) {
+	case ON_CONNECT_TO_SERVER_DONE:
+		onConnectToServerDone(message);
+		break;
+	case ON_CONNECT_TO_SERVER_PENDING:
+		onConnectToServerPending(message);
+		break;
+	case ON_CONNECT_TO_SERVER_RETRY:
+		onConnectToServerRetry(message);
+		break;
+	case ON_CONNECT_TO_SERVER_ERROR:
+		onConnectToServerError(message);
+		break;
+	case ON_RECV_DATA:
+		onReceiveData(message);
+		break;
 	}
 }
 

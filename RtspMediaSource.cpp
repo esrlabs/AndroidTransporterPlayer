@@ -310,7 +310,7 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					msg->metaData()->putString("CodecConfig", codecConfig);
 					msg->metaData()->putString("TransportProtocol", (mVideoTransportProtocol == UDP) ? "UDP" : "TCP");
 					msg->metaData()->putString("ServerIpAddress", mServerIpAddress);
-					msg->metaData()->putUInt16("ServerPorts", mVideoServerPorts[0]);
+					msg->metaData()->putUInt16("ServerPorts", 1742); //mVideoServerPorts[0]);
 					mPendingTracks->push_back(msg);
 				}
 			}

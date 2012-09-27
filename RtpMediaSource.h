@@ -25,6 +25,7 @@
 
 class MediaAssembler;
 namespace mindroid {
+class Looper;
 class Message;
 class Buffer;
 class DatagramSocket;
@@ -37,8 +38,7 @@ class RtpMediaSource :
 	public mindroid::Handler
 {
 public:
-	class NetReceiver :
-			public mindroid::Thread
+	class NetReceiver : public mindroid::Thread
 	{
 	public:
 		NetReceiver();
@@ -54,8 +54,7 @@ public:
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(NetReceiver)
 	};
 
-	class UdpNetReceiver :
-			public NetReceiver
+	class UdpNetReceiver : public NetReceiver
 	{
 	public:
 		UdpNetReceiver(uint16_t port);
@@ -71,8 +70,7 @@ public:
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(UdpNetReceiver)
 	};
 
-	class TcpNetReceiver :
-			public NetReceiver
+	class TcpNetReceiver : public NetReceiver
 	{
 	public:
 		TcpNetReceiver(mindroid::String hostName, uint16_t port);
@@ -80,13 +78,41 @@ public:
 		virtual void stop();
 
 	private:
-		static const uint32_t MAX_TCP_PACKET_SIZE = 65536;
+		class TcpNetReceiverImpl : public mindroid::Handler
+		{
+		public:
+			TcpNetReceiverImpl(mindroid::String hostName, uint16_t port);
+			void start(sp<mindroid::Message> msg1, sp<mindroid::Message> msg2);
+			void stop();
+			virtual void handleMessage(const sp<mindroid::Message>& message);
 
-		sp<mindroid::Socket> mRtpSocket;
-		sp<mindroid::Socket> mRtcpSocket;
+		private:
+			static const uint32_t MAX_TCP_PACKET_SIZE = 65536;
+			static const uint32_t ON_CONNECT_TO_SERVER_DONE = 1;
+			static const uint32_t ON_CONNECT_TO_SERVER_PENDING = 2;
+			static const uint32_t ON_CONNECT_TO_SERVER_RETRY = 3;
+			static const uint32_t ON_CONNECT_TO_SERVER_ERROR = 4;
+			static const uint32_t ON_RECV_DATA = 5;
+
+			void asyncConnectToServer(sp<mindroid::Socket> socket, mindroid::String hostName, uint16_t port, uint16_t retryCounter = 0);
+			void onConnectToServerDone(const sp<mindroid::Message>& message);
+			void onConnectToServerPending(const sp<mindroid::Message>& message);
+			void onConnectToServerRetry(const sp<mindroid::Message>& message);
+			void onConnectToServerError(const sp<mindroid::Message>& message);
+			void onReceiveData(const sp<mindroid::Message>& message);
+
+			sp<mindroid::Socket> mRtpSocket;
+			sp<mindroid::Socket> mRtcpSocket;
+			mindroid::String mHostName;
+			uint16_t mPort;
+			sp<mindroid::Message> mNotifyRtpPacket;
+			sp<mindroid::Message> mNotifyRtcpPacket;
+		};
+
+		mindroid::Looper* mLooper;
+		sp<TcpNetReceiverImpl> mNetReceiverImpl;
 		mindroid::String mHostName;
 		uint16_t mPort;
-
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(TcpNetReceiver)
 	};
 
