@@ -44,7 +44,7 @@ public:
 		NetReceiver();
 		virtual void run() = 0;
 		virtual void stop();
-		void setHandler(const sp<Handler>& hander);
+		void createNotifMessages(const sp<Handler>& hander);
 
 	protected:
 		sp<mindroid::Message> mNotifyRtpPacket;
@@ -76,43 +76,40 @@ public:
 		TcpNetReceiver(mindroid::String hostName, uint16_t port);
 		virtual void run();
 		virtual void stop();
+		void setHandler(const sp<Handler>& handler) { mHandler = handler; }
 
 	private:
-		class TcpNetReceiverImpl : public mindroid::Handler
+		class TcpNetReceiverHandler : public mindroid::Handler
 		{
 		public:
-			TcpNetReceiverImpl(mindroid::String hostName, uint16_t port);
-			void start(sp<mindroid::Message> msg1, sp<mindroid::Message> msg2);
-			void stop();
+			TcpNetReceiverHandler(sp<TcpNetReceiver> tcpNetReceiver) : mTcpNetReceiver(tcpNetReceiver) { }
 			virtual void handleMessage(const sp<mindroid::Message>& message);
 
 		private:
-			static const uint32_t MAX_TCP_PACKET_SIZE = 65536;
-			static const uint32_t ON_CONNECT_TO_SERVER_DONE = 1;
-			static const uint32_t ON_CONNECT_TO_SERVER_PENDING = 2;
-			static const uint32_t ON_CONNECT_TO_SERVER_RETRY = 3;
-			static const uint32_t ON_CONNECT_TO_SERVER_ERROR = 4;
-			static const uint32_t ON_RECV_DATA = 5;
-
-			void asyncConnectToServer(sp<mindroid::Socket> socket, mindroid::String hostName, uint16_t port, uint16_t retryCounter = 0);
-			void onConnectToServerDone(const sp<mindroid::Message>& message);
-			void onConnectToServerPending(const sp<mindroid::Message>& message);
-			void onConnectToServerRetry(const sp<mindroid::Message>& message);
-			void onConnectToServerError(const sp<mindroid::Message>& message);
-			void onReceiveData(const sp<mindroid::Message>& message);
-
-			sp<mindroid::Socket> mRtpSocket;
-			sp<mindroid::Socket> mRtcpSocket;
-			mindroid::String mHostName;
-			uint16_t mPort;
-			sp<mindroid::Message> mNotifyRtpPacket;
-			sp<mindroid::Message> mNotifyRtcpPacket;
+			sp<TcpNetReceiver> mTcpNetReceiver;
 		};
 
+		static const uint32_t MAX_TCP_PACKET_SIZE = 65536;
+		static const uint32_t ON_CONNECT_TO_SERVER_DONE = 1;
+		static const uint32_t ON_CONNECT_TO_SERVER_PENDING = 2;
+		static const uint32_t ON_CONNECT_TO_SERVER_RETRY = 3;
+		static const uint32_t ON_CONNECT_TO_SERVER_ERROR = 4;
+		static const uint32_t ON_RECV_DATA = 5;
+
+		void asyncConnectToServer(sp<mindroid::Socket> socket, mindroid::String hostName, uint16_t port, uint16_t retryCounter = 0);
+		void onConnectToServerDone(const sp<mindroid::Message>& message);
+		void onConnectToServerPending(const sp<mindroid::Message>& message);
+		void onConnectToServerRetry(const sp<mindroid::Message>& message);
+		void onConnectToServerError(const sp<mindroid::Message>& message);
+		void onReceiveData(const sp<mindroid::Message>& message);
+
 		mindroid::Looper* mLooper;
-		sp<TcpNetReceiverImpl> mNetReceiverImpl;
+		sp<mindroid::Handler> mHandler;
+		sp<mindroid::Socket> mRtpSocket;
+		sp<mindroid::Socket> mRtcpSocket;
 		mindroid::String mHostName;
 		uint16_t mPort;
+
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(TcpNetReceiver)
 	};
 

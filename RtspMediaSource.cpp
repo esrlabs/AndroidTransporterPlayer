@@ -205,8 +205,10 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 			mTeardownDone = true;
 			sp<Bundle> bundle = message->metaData();
 			sp<Message> reply = bundle->getObject<Message>("Reply");
-			mNetReceiver->stop();
-			mNetReceiver = NULL;
+			if (mNetReceiver != NULL) {
+				mNetReceiver->stop();
+				mNetReceiver = NULL;
+			}
 			reply->sendToTarget();
 		}
 		break;

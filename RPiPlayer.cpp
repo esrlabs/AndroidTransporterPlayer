@@ -36,7 +36,8 @@ RPiPlayer::RPiPlayer() :
 		mVideoRenderer(NULL),
 		mClock(NULL),
 		mPortSettingsChanged(false),
-		mFirstVideoPacket(true) {
+		mFirstVideoPacket(true),
+		mShutdown(false) {
 	mAudioBuffers = new List< sp<Buffer> >();
 	mVideoBuffers = new List< sp<Buffer> >();
 	mOmxAudioInputBuffers = new List<OMX_BUFFERHEADERTYPE*>();
@@ -120,10 +121,13 @@ bool RPiPlayer::startMediaSource(const String& url) {
 }
 
 void RPiPlayer::stopMediaSource() {
-	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::STOP_MEDIA_SOURCE);
-	sp<Bundle> bundle = message->metaData();
-	bundle->putObject("Reply", obtainMessage(STOP_MEDIA_SOURCE_DONE));
-	message->sendToTarget();
+	if (!mShutdown) {
+		mShutdown = true;
+		sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::STOP_MEDIA_SOURCE);
+		sp<Bundle> bundle = message->metaData();
+		bundle->putObject("Reply", obtainMessage(STOP_MEDIA_SOURCE_DONE));
+		message->sendToTarget();
+	}
 }
 
 void RPiPlayer::onFillAndPlayAudioBuffers() {

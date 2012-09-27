@@ -97,6 +97,8 @@ private:
 	COMPONENT_T* mClock;
 	bool mPortSettingsChanged;
 	bool mFirstVideoPacket;
+
+	bool mShutdown;
 };
 
 #endif /* RPIPLAYER_H_ */
