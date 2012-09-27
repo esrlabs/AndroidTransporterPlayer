@@ -35,20 +35,29 @@ using mindroid::sp;
 class RtspMediaSource :
 	public mindroid::Handler {
 public:
-	static const uint32_t START_VIDEO_TRACK = 0;
-	static const uint32_t START_AUDIO_TRACK = 1;
-	static const uint32_t DESCRIBE_MEDIA_SOURCE = 2;
+	static const uint32_t DESCRIBE_MEDIA_SOURCE = 1;
+	static const uint32_t SETUP_AUDIO_TRACK = 2;
 	static const uint32_t SETUP_AUDIO_TRACK_DONE = 3;
-	static const uint32_t PLAY_AUDIO_TRACK_DONE = 4;
-	static const uint32_t SETUP_VIDEO_TRACK_DONE = 5;
-	static const uint32_t PLAY_VIDEO_TRACK_DONE = 6;
-	static const uint32_t TEARDOWN_AUDIO_TRACK = 7;
-	static const uint32_t TEARDOWN_VIDEO_TRACK = 8;
-	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 9;
+	static const uint32_t PLAY_AUDIO_TRACK = 4;
+	static const uint32_t PLAY_AUDIO_TRACK_DONE = 5;
+	static const uint32_t SETUP_VIDEO_TRACK = 6;
+	static const uint32_t SETUP_VIDEO_TRACK_DONE = 7;
+	static const uint32_t PLAY_VIDEO_TRACK = 8;
+	static const uint32_t PLAY_VIDEO_TRACK_DONE = 9;
+	static const uint32_t TEARDOWN_AUDIO_TRACK = 10;
+	static const uint32_t TEARDOWN_VIDEO_TRACK = 11;
+	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 12;
 
-	enum TransportProtocol {
-		UDP,
-		TCP
+	struct MediaSource {
+		mindroid::String url;
+		uint32_t type;
+		mindroid::String transportProtocol;
+		mindroid::String serverIpAddress;
+		uint16_t serverPorts[2];
+		mindroid::String sessionId;
+		mindroid::String profileId;
+		mindroid::String spropParams;
+		mindroid::String codecConfig;
 	};
 
 	RtspMediaSource(const sp<mindroid::Handler>& netHandler);
@@ -96,14 +105,8 @@ private:
 	mindroid::String mHost;
 	mindroid::String mPort;
 	mindroid::String mSdpFile;
-	mindroid::String mServerIpAddress;
-	mindroid::String mAudioMediaSource;
-	mindroid::String mAudioSessionId;
-	TransportProtocol mAudioTransportProtocol;
-	mindroid::String mVideoMediaSource;
-	mindroid::String mVideoSessionId;
-	TransportProtocol mVideoTransportProtocol;
-	uint16_t mVideoServerPorts[2];
+	MediaSource mAudioMediaSource;
+	MediaSource mVideoMediaSource;
 	uint32_t mCSeq;
 	bool mTeardownDone;
 

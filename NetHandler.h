@@ -42,13 +42,14 @@ public:
 	static const uint32_t MEDIA_SOURCE_HAS_NO_STREAMS = 6;
 	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 7;
 
+	static const uint16_t RTP_AUDIO_SOURCE_PORT = 56096;
+	static const uint16_t RTP_VIDEO_SOURCE_PORT = 56098;
+
 	NetHandler();
 	~NetHandler();
 	virtual void handleMessage(const sp<mindroid::Message>& message);
 
 private:
-	static const uint16_t RTP_AUDIO_SOURCE_PORT = 56096;
-	static const uint16_t RTP_VIDEO_SOURCE_PORT = 56098;
 	static const uint8_t PCM_AUDIO_TYPE = 10;
 	static const uint8_t AAC_AUDIO_TYPE_1 = 96;
 	static const uint8_t AAC_AUDIO_TYPE_2 = 97;
