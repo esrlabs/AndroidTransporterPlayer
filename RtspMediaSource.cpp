@@ -446,9 +446,9 @@ void RtspMediaSource::NetReceiver::run() {
 		bool result = mSocket->readPacketHeader(rtspHeader);
 		if (result) {
 			if (rtspHeader != NULL && !rtspHeader->empty()) {
-				uint32_t seqNum = atoi((*rtspHeader)[String("CSeq").toLowerCase()]);
-				sp<Message> reply = mMediaSource->removePendingRequest(seqNum);
 				if ((*rtspHeader)[String("ResultCode")] == "200") {
+					uint32_t seqNum = atoi((*rtspHeader)[String("CSeq").toLowerCase()]);
+					sp<Message> reply = mMediaSource->removePendingRequest(seqNum);
 					reply->obj = rtspHeader;
 
 					String strContentLength = (*rtspHeader)[String("Content-Length").toLowerCase()];
@@ -465,8 +465,10 @@ void RtspMediaSource::NetReceiver::run() {
 
 					reply->sendToTarget();
 				} else {
-					reply->obj = rtspHeader;
-					reply->sendToTarget();
+					if ((*rtspHeader)[String("ResultCode")] == "404") {
+						printf("RTSP media source is not available.\n");
+					}
+					mMediaSource->obtainMessage(MEDIA_SOURCE_HAS_QUIT)->sendToTarget();
 				}
 			}
 		} else {
