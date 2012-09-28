@@ -51,7 +51,7 @@ void RtpMediaSource::NetReceiver::stop() {
 	mNotifyRtcpPacket = NULL;
 }
 
-void RtpMediaSource::NetReceiver::createNotifMessages(const sp<Handler>& hander) {
+void RtpMediaSource::NetReceiver::createNotifyMessages(const sp<Handler>& hander) {
 	mNotifyRtpPacket = hander->obtainMessage(NOTIFY_RTP_PACKET);
 	mNotifyRtcpPacket = hander->obtainMessage(NOTIFY_RTCP_PACKET);
 }
@@ -150,7 +150,7 @@ void RtpMediaSource::TcpNetReceiver::run() {
 	mLooper = Looper::myLooper();
 	sp<TcpNetReceiverHandler> handler = new TcpNetReceiverHandler(this);
 	setHandler(handler);
-	sp<Runnable> runnable = newRunnable<TcpNetReceiver, sp<Socket>, String, uint16_t, uint16_t>(*this, &TcpNetReceiver::asyncConnectToServer, new Socket(), mHostName, mPort, 0);
+	sp<Runnable> runnable = newRunnable(*this, &TcpNetReceiver::asyncConnectToServer, sp<Socket>(new Socket()), mHostName, mPort, (uint16_t)0);
 	handler->post(runnable);
 	Looper::loop();
 }
@@ -167,7 +167,7 @@ void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, Str
 	metaData->putObject("Socket", socket);
 	metaData->putString("HostName", hostName);
 	metaData->putUInt16("Port", port);
-	metaData->putUInt16("Retry-Counter", retryCounter);
+	metaData->putUInt16("RetryCounter", retryCounter);
 
 	int rc = socket->connect(hostName.c_str(), port);
 	if (rc < 0) {
@@ -182,21 +182,6 @@ void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, Str
 	} else {
 		reply->what = ON_CONNECT_TO_SERVER_DONE;
 		reply->sendToTarget();
-	}
-}
-
-void RtpMediaSource::TcpNetReceiver::onConnectToServerDone(const sp<Message>& message) {
-	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
-	String hostName = message->metaData()->getString("HostName");
-	uint16_t port;
-	message->metaData()->fillUInt16("Port", port);
-
-	if (mRtpSocket == NULL) {
-		mRtpSocket = socket;
-		asyncConnectToServer(new Socket(), hostName, port + 1, 0);
-	} else {
-		mRtcpSocket = socket;
-		mHandler->obtainMessage(ON_RECV_DATA)->sendToTarget();
 	}
 }
 
@@ -219,9 +204,9 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerPending(const sp<Message>&
 	if (errorCode != 0) {
 		reply->what = ON_CONNECT_TO_SERVER_RETRY;
 		uint16_t retryCounter;
-		reply->metaData()->fillUInt16("Retry-Counter", retryCounter);
-		reply->metaData()->remove("Retry-Counter");
-		reply->metaData()->putUInt16("Retry-Counter", retryCounter + 1);
+		reply->metaData()->fillUInt16("RetryCounter", retryCounter);
+		reply->metaData()->remove("RetryCounter");
+		reply->metaData()->putUInt16("RetryCounter", retryCounter + 1);
 		mHandler->sendMessageDelayed(reply, 10);
 	} else {
 		reply->what = ON_CONNECT_TO_SERVER_DONE;
@@ -232,7 +217,7 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerPending(const sp<Message>&
 void RtpMediaSource::TcpNetReceiver::onConnectToServerRetry(const sp<Message>& message) {
 	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
 	uint16_t retryCounter;
-	message->metaData()->fillUInt16("Retry-Counter", retryCounter);
+	message->metaData()->fillUInt16("RetryCounter", retryCounter);
 
 	if (retryCounter > 20) {
 		sp<Message> reply = message;
@@ -255,6 +240,21 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerError(const sp<Message>& m
 	uint16_t port;
 	message->metaData()->fillUInt16("Port", port);
 	printf("Cannot connect to %s:%d\n", hostName.c_str(), port);
+}
+
+void RtpMediaSource::TcpNetReceiver::onConnectToServerDone(const sp<Message>& message) {
+	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
+	String hostName = message->metaData()->getString("HostName");
+	uint16_t port;
+	message->metaData()->fillUInt16("Port", port);
+
+	if (mRtpSocket == NULL) {
+		mRtpSocket = socket;
+		asyncConnectToServer(new Socket(), hostName, port + 1, 0);
+	} else {
+		mRtcpSocket = socket;
+		mHandler->obtainMessage(ON_RECV_DATA)->sendToTarget();
+	}
 }
 
 void RtpMediaSource::TcpNetReceiver::onReceiveData(const sp<Message>& message) {
@@ -340,7 +340,7 @@ RtpMediaSource::RtpMediaSource(sp<NetReceiver> netReceiver) :
 		mHighestSeqNumber(0),
 		mNetReceiver(netReceiver) {
 	mQueue = new List< sp<Buffer> >();
-	mNetReceiver->createNotifMessages(this);
+	mNetReceiver->createNotifyMessages(this);
 }
 
 RtpMediaSource::~RtpMediaSource() {

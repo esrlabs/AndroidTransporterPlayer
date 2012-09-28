@@ -44,7 +44,7 @@ public:
 		NetReceiver();
 		virtual void run() = 0;
 		virtual void stop();
-		void createNotifMessages(const sp<Handler>& hander);
+		void createNotifyMessages(const sp<Handler>& hander);
 
 	protected:
 		sp<mindroid::Message> mNotifyRtpPacket;
@@ -90,10 +90,10 @@ public:
 		};
 
 		static const uint32_t MAX_TCP_PACKET_SIZE = 65536;
-		static const uint32_t ON_CONNECT_TO_SERVER_DONE = 1;
-		static const uint32_t ON_CONNECT_TO_SERVER_PENDING = 2;
-		static const uint32_t ON_CONNECT_TO_SERVER_RETRY = 3;
-		static const uint32_t ON_CONNECT_TO_SERVER_ERROR = 4;
+		static const uint32_t ON_CONNECT_TO_SERVER_PENDING = 1;
+		static const uint32_t ON_CONNECT_TO_SERVER_RETRY = 2;
+		static const uint32_t ON_CONNECT_TO_SERVER_ERROR = 3;
+		static const uint32_t ON_CONNECT_TO_SERVER_DONE = 4;
 		static const uint32_t ON_RECV_DATA = 5;
 
 		void asyncConnectToServer(sp<mindroid::Socket> socket, mindroid::String hostName, uint16_t port, uint16_t retryCounter = 0);
