@@ -77,12 +77,12 @@ void RtpMediaSource::UdpNetReceiver::run() {
 	setpriority(PRIO_PROCESS, 0, -16);
 
 	while (!isInterrupted()) {
-		fd_set sockets;
-		FD_ZERO(&sockets);
+		fd_set readFds;
+		FD_ZERO(&readFds);
 
-		FD_SET(mRtpSocket->getId(), &sockets);
-		FD_SET(mRtcpSocket->getId(), &sockets);
-		FD_SET(mPipe[0], &sockets);
+		FD_SET(mRtpSocket->getId(), &readFds);
+		FD_SET(mRtcpSocket->getId(), &readFds);
+		FD_SET(mPipe[0], &readFds);
 
 		int maxId = mRtpSocket->getId();
 		if (mRtcpSocket->getId() > maxId) {
@@ -92,10 +92,10 @@ void RtpMediaSource::UdpNetReceiver::run() {
 			maxId = mPipe[0];
 		}
 
-		int result = select(maxId + 1, &sockets, NULL, NULL, NULL);
+		int result = select(maxId + 1, &readFds, NULL, NULL, NULL);
 
 		if (result > 0) {
-			if (FD_ISSET(mRtpSocket->getId(), &sockets)) {
+			if (FD_ISSET(mRtpSocket->getId(), &readFds)) {
 				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
 				ssize_t size = mRtpSocket->recv(buffer->data(), buffer->capacity());
 				if (size > 0) {
@@ -105,7 +105,7 @@ void RtpMediaSource::UdpNetReceiver::run() {
 					bundle->putObject("RTP-Packet", buffer);
 					msg->sendToTarget();
 				}
-			} else if (FD_ISSET(mRtcpSocket->getId(), &sockets)) {
+			} else if (FD_ISSET(mRtcpSocket->getId(), &readFds)) {
 				sp<Buffer> buffer(new Buffer(MAX_UDP_PACKET_SIZE));
 				ssize_t size = mRtcpSocket->recv(buffer->data(), buffer->capacity());
 				if (size > 0) {
@@ -188,29 +188,50 @@ void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, Str
 void RtpMediaSource::TcpNetReceiver::onConnectToServerPending(const sp<Message>& message) {
 	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
 
+	fd_set readFds;
+	FD_ZERO(&readFds);
+	FD_SET(mPipe[0], &readFds);
+
 	fd_set writeFds;
 	FD_ZERO(&writeFds);
 	FD_SET(socket->getId(), &writeFds);
 
 	int maxId = socket->getId();
+	if (mPipe[0] > maxId) {
+		maxId = mPipe[0];
+	}
 
-	int rc = select(maxId + 1, NULL, &writeFds, NULL, NULL);
+	int rc = select(maxId + 1, &readFds, &writeFds, NULL, NULL);
+	if (rc > 0) {
+		if (FD_ISSET(socket->getId(), &writeFds)) {
+			int errorCode;
+			socklen_t ecSize = sizeof(errorCode);
+			getsockopt(socket->getId(), SOL_SOCKET, SO_ERROR, &errorCode, &ecSize);
 
-	int errorCode;
-	socklen_t ecSize = sizeof(errorCode);
-	getsockopt(socket->getId(), SOL_SOCKET, SO_ERROR, &errorCode, &ecSize);
-
-	sp<Message> reply = message;
-	if (errorCode != 0) {
+			sp<Message> reply = message;
+			if (errorCode != 0) {
+				reply->what = ON_CONNECT_TO_SERVER_RETRY;
+				uint16_t retryCounter;
+				reply->metaData()->fillUInt16("RetryCounter", retryCounter);
+				reply->metaData()->remove("RetryCounter");
+				reply->metaData()->putUInt16("RetryCounter", retryCounter + 1);
+				mHandler->sendMessageDelayed(reply, 10);
+			} else {
+				reply->what = ON_CONNECT_TO_SERVER_DONE;
+				reply->sendToTarget();
+			}
+		}
+		if (FD_ISSET(mPipe[0], &readFds)) {
+			// TODO: Shutdown the player.
+		}
+	} else {
+		sp<Message> reply = message;
 		reply->what = ON_CONNECT_TO_SERVER_RETRY;
 		uint16_t retryCounter;
 		reply->metaData()->fillUInt16("RetryCounter", retryCounter);
 		reply->metaData()->remove("RetryCounter");
 		reply->metaData()->putUInt16("RetryCounter", retryCounter + 1);
 		mHandler->sendMessageDelayed(reply, 10);
-	} else {
-		reply->what = ON_CONNECT_TO_SERVER_DONE;
-		reply->sendToTarget();
 	}
 }
 
