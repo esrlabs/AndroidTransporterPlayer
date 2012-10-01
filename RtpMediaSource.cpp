@@ -320,9 +320,9 @@ void RtpMediaSource::TcpNetReceiver::onReceiveData(const sp<Message>& message) {
 			mRtcpSocket->setBlockingMode(false);
 			if (size > 0) {
 				buffer->setRange(0, size);
-				sp<Message> msg = mNotifyRtpPacket->dup();
+				sp<Message> msg = mNotifyRtcpPacket->dup();
 				sp<Bundle> bundle = msg->metaData();
-				bundle->putObject("RTP-Packet", buffer);
+				bundle->putObject("RTCP-Packet", buffer);
 				msg->sendToTarget();
 			}
 		}

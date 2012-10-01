@@ -216,5 +216,8 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 }
 
 uint32_t AvcMediaAssembler::getNextSeqNum() const {
+	sp<Buffer> lastBuffer = *(--mQueue->end());
+	mQueue->clear();
+	mQueue->push_back(lastBuffer);
 	return (*mQueue->begin())->getId();
 }

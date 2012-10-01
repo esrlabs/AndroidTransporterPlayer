@@ -19,6 +19,7 @@
 #include "MediaAssembler.h"
 #include "mindroid/os/Clock.h"
 #include "mindroid/util/Buffer.h"
+#include <stdio.h>
 
 using namespace mindroid;
 
@@ -43,6 +44,7 @@ void MediaAssembler::processMediaQueue() {
                 	mFirstSeqNumberFailureTime = 0;
                 	// We lost that packet. Empty the media queue.
                 	mSeqNumber = getNextSeqNum();
+                	printf("Timeout in MediaAssembler::processMediaQueue -> dropping frames\n");
                     continue;
                 }
             } else {
