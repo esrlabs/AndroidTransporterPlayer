@@ -74,6 +74,6 @@ MediaAssembler::Status AacMediaAssembler::assembleMediaData() {
 	return OK;
 }
 
-uint32_t AacMediaAssembler::getNextSeqNum() const {
+uint32_t AacMediaAssembler::fixPacketLoss() const {
 	return (*mQueue->begin())->getId();
 }

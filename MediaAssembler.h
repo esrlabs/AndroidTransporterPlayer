@@ -36,7 +36,7 @@ public:
 	MediaAssembler();
 	virtual ~MediaAssembler() { }
 	virtual Status assembleMediaData() = 0;
-	virtual uint32_t getNextSeqNum() const = 0;
+	virtual uint32_t fixPacketLoss() const = 0; // returns the next sequence number
 	void processMediaQueue();
 
 protected:

@@ -37,7 +37,7 @@ public:
 	virtual ~AvcMediaAssembler();
 
 	virtual Status assembleMediaData();
-	virtual uint32_t getNextSeqNum() const;
+	virtual uint32_t fixPacketLoss() const;
 
 private:
 	static const uint8_t F_BIT = 1 << 7;

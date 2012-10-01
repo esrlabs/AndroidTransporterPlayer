@@ -43,8 +43,8 @@ void MediaAssembler::processMediaQueue() {
                 if (Clock::monotonicTime() - mFirstSeqNumberFailureTime > TIME_PERIOD_20MS) {
                 	mFirstSeqNumberFailureTime = 0;
                 	// We lost that packet. Empty the media queue.
-                	mSeqNumber = getNextSeqNum();
-                	printf("Timeout in MediaAssembler::processMediaQueue -> dropping frames\n");
+                	mSeqNumber = fixPacketLoss();
+//                	printf("Timeout in MediaAssembler::processMediaQueue -> dropping frames\n");
                     continue;
                 }
             } else {

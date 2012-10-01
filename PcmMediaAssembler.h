@@ -37,7 +37,7 @@ public:
 	virtual ~PcmMediaAssembler();
 
 	virtual Status assembleMediaData();
-	virtual uint32_t getNextSeqNum() const;
+	virtual uint32_t fixPacketLoss() const;
 
 private:
 	void swapPcmDataEndianess(const sp<mindroid::Buffer>& buffer);

@@ -37,7 +37,7 @@ public:
 	AacMediaAssembler(sp< mindroid::List< sp<mindroid::Buffer> > > queue, sp<AacDecoder> aacDecoder);
 	virtual ~AacMediaAssembler();
 	virtual Status assembleMediaData();
-	virtual uint32_t getNextSeqNum() const;
+	virtual uint32_t fixPacketLoss() const;
 
 private:
 	sp< mindroid::List< sp<mindroid::Buffer> > > mQueue;

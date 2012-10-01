@@ -215,7 +215,7 @@ AvcMediaAssembler::Status AvcMediaAssembler::processFragNalUnit() {
 	return OK;
 }
 
-uint32_t AvcMediaAssembler::getNextSeqNum() const {
+uint32_t AvcMediaAssembler::fixPacketLoss() const {
 	sp<Buffer> lastBuffer = *(--mQueue->end());
 	mQueue->clear();
 	mQueue->push_back(lastBuffer);

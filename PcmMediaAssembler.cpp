@@ -83,7 +83,7 @@ MediaAssembler::Status PcmMediaAssembler::assembleMediaData() {
 	return OK;
 }
 
-uint32_t PcmMediaAssembler::getNextSeqNum() const {
+uint32_t PcmMediaAssembler::fixPacketLoss() const {
 	return (*mQueue->begin())->getId();
 }
 
