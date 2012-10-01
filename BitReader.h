@@ -16,17 +16,32 @@
  * Additions and refactorings by E.S.R.Labs GmbH
  */
 
-#include "Utils.h"
-#include "mindroid/lang/String.h"
-#include "mindroid/util/Buffer.h"
+#ifndef BITREADER_H_
+#define BITREADER_H_
 
-using namespace mindroid;
+#include "mindroid/util/Utils.h"
+#include <sys/types.h>
+#include <stdint.h>
 
-sp<Buffer> Utils::hexStringToByteArray(const String& hexString) {
-	size_t byteArraySize = hexString.size() / 2;
-	sp<Buffer> byteArray = new Buffer(byteArraySize);
-	for(size_t i = 0; i < hexString.size(); i += 2) {
-		byteArray->data()[i / 2] = (uint8_t) strtol(hexString.substr(i, i + 2), NULL, 16);
-	}
-	return byteArray;
-}
+class BitReader
+{
+public:
+	BitReader(const uint8_t* data, size_t size);
+    uint32_t getBits(size_t numBits);
+    void skipBits(size_t numBits);
+    void putBits(uint32_t value, size_t numBits);
+    size_t numBitsAvailable() const;
+    const uint8_t* data() const;
+
+private:
+    void fillReservoir();
+
+    const uint8_t* mData;
+    size_t mSize;
+    uint32_t mReservoir; // The reservoir holds the next <= 32 left-aligned bits.
+    size_t mNumBitsAvailable;
+
+    NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(BitReader)
+};
+
+#endif /* BITREADER_H_ */

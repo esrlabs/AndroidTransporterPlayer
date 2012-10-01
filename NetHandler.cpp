@@ -20,7 +20,7 @@
 #include "AacMediaAssembler.h"
 #include "AacDecoder.h"
 #include "AvcMediaAssembler.h"
-#include "Utils.h"
+#include "CsdUtils.h"
 #include "mindroid/os/Bundle.h"
 #include "mindroid/lang/String.h"
 #include "mindroid/util/Buffer.h"
@@ -86,13 +86,15 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		message->metaData()->fillString("SpropParams", spropParams);
 
 		if (videoType == AVC_VIDEO_TYPE_1 || videoType == AVC_VIDEO_TYPE_2) {
-			sp<Buffer> sps = buildSequenceParameterSet();
+			sp<Buffer> sps;
+			sp<Buffer> pps;
+			CsdUtils::buildAvcCodecSpecificData(profileId, spropParams, &sps, &pps);
+
 			sp<Message> spsMessage = mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER);
 			sp<Bundle> spsBundle = spsMessage->metaData();
 			spsBundle->putObject("Access-Unit", sps);
 			spsMessage->sendToTarget();
 
-			sp<Buffer> pps = buildPictureParameterSet();
 			sp<Message> ppsMessage = mPlayer->obtainMessage(RPiPlayer::NOTIFY_QUEUE_VIDEO_BUFFER);
 			sp<Bundle> ppsBundle = ppsMessage->metaData();
 			ppsBundle->putObject("Access-Unit", pps);
@@ -131,22 +133,4 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 		mPlayer->stop();
 		break;
 	}
-}
-
-sp<Buffer> NetHandler::buildSequenceParameterSet() {
-	const uint8_t sps[] = { 0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x80, 0x28, 0x95, 0xa0, 0x14, 0x01, 0x94, 0x40 };
-
-	sp<Buffer> buffer(new Buffer(sizeof(sps)));
-	memcpy(buffer->data(), sps, sizeof(sps));
-	buffer->setRange(0, sizeof(sps));
-	return buffer;
-}
-
-sp<Buffer> NetHandler::buildPictureParameterSet() {
-	const uint8_t pps[] = { 0x00, 0x00, 0x00, 0x01, 0x68, 0xce, 0x3c, 0x80 };
-
-	sp<Buffer> buffer(new Buffer(sizeof(pps)));
-	memcpy(buffer->data(), pps, sizeof(pps));
-	buffer->setRange(0, sizeof(pps));
-	return buffer;
 }

@@ -16,11 +16,12 @@
  * Additions and refactorings by E.S.R.Labs GmbH
  */
 
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef CSDUTILS_H_
+#define CSDUTILS_H_
 
 #include "mindroid/os/Ref.h"
 
+class BitReader;
 namespace mindroid {
 class String;
 class Buffer;
@@ -28,9 +29,16 @@ class Buffer;
 
 using mindroid::sp;
 
-class Utils {
+/* Utility functions for codec specific data */
+class CsdUtils {
 public:
 	static sp<mindroid::Buffer> hexStringToByteArray(const mindroid::String& hexString);
+	static sp<mindroid::Buffer> decodeBase64String(const mindroid::String& string);
+	static void buildAvcCodecSpecificData(const mindroid::String strProfileId, const mindroid::String strSpropParamSet, sp<mindroid::Buffer>* sps, sp<mindroid::Buffer>* pps);
+
+private:
+	static void getAvcDimensions(const sp<mindroid::Buffer>& seqParamSet, int32_t* width, int32_t* height);
+	static unsigned parseUE(BitReader& br); // See the ITU-T H.264 spec (sec 9.1) for Exp-Golomb code parsing.
 };
 
-#endif /* UTILS_H_ */
+#endif /* CSDUTILS_H_ */
