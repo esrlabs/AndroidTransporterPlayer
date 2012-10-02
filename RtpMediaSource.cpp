@@ -178,7 +178,7 @@ void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, Str
 		}
 
 		reply->what = ON_CONNECT_TO_SERVER_RETRY;
-		mHandler->sendMessageDelayed(reply, 10);
+		mHandler->sendMessageDelayed(reply, 100);
 	} else {
 		reply->what = ON_CONNECT_TO_SERVER_DONE;
 		reply->sendToTarget();
@@ -215,7 +215,7 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerPending(const sp<Message>&
 				reply->metaData()->fillUInt16("RetryCounter", retryCounter);
 				reply->metaData()->remove("RetryCounter");
 				reply->metaData()->putUInt16("RetryCounter", retryCounter + 1);
-				mHandler->sendMessageDelayed(reply, 10);
+				mHandler->sendMessageDelayed(reply, 100);
 			} else {
 				reply->what = ON_CONNECT_TO_SERVER_DONE;
 				reply->sendToTarget();
@@ -231,7 +231,7 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerPending(const sp<Message>&
 		reply->metaData()->fillUInt16("RetryCounter", retryCounter);
 		reply->metaData()->remove("RetryCounter");
 		reply->metaData()->putUInt16("RetryCounter", retryCounter + 1);
-		mHandler->sendMessageDelayed(reply, 10);
+		mHandler->sendMessageDelayed(reply, 100);
 	}
 }
 
@@ -240,7 +240,7 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerRetry(const sp<Message>& m
 	uint16_t retryCounter;
 	message->metaData()->fillUInt16("RetryCounter", retryCounter);
 
-	if (retryCounter > 20) {
+	if (retryCounter > 10) {
 		sp<Message> reply = message;
 		reply->what = ON_CONNECT_TO_SERVER_ERROR;
 		reply->sendToTarget();
