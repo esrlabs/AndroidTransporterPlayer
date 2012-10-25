@@ -362,7 +362,7 @@ void RtspMediaSource::startPendingTracks() {
 	List< sp<Message> >::iterator itr = mPendingTracks->begin();
 	if (itr != mPendingTracks->end()) {
 		sp<Message> msg = (*itr);
-		mPendingTracks->erase(itr);
+		itr = mPendingTracks->erase(itr);
 		msg->sendToTarget();
 	}
 }

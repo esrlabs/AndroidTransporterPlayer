@@ -21,6 +21,7 @@
 #include <mindroid/lang/String.h>
 #include <mindroid/util/List.h>
 #include "NetHandler.h"
+#include <stdio.h>
 extern "C" {
 #include "bcm_host.h"
 #include "ilclient.h"
@@ -59,9 +60,13 @@ private:
 	int initOMXVideo();
 	void finalizeOMXVideo();
 	void onPlayAudioBuffers();
+	static size_t min(size_t s1, size_t s2) {
+		return s1 < s2 ? s1 : s2;
+	}
 	void onFillAndPlayAudioBuffers();
 	void onPlayVideoBuffers();
 	static void onEmptyBufferDone(void* args, COMPONENT_T* component);
+	uint32_t numAudioSamplesAvailable();
 	bool minNumAudioSamplesAvailable();
 	void calcNumAudioStretchSamples();
 	uint32_t numOmxOwnedAudioSamples();
@@ -76,13 +81,14 @@ private:
 	static const uint32_t BITS_PER_SAMPLE = 16;
 	static const uint32_t BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 	static const uint32_t NUM_OMX_AUDIO_BUFFERS = 8;
-	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 4096; // 2048 samples -> 46ms
-	static const uint32_t MIN_FILLED_AUDIO_BUFFERS_AT_START = 3;
+	static const uint32_t OMX_AUDIO_BUFFER_SIZE = 4096;
+	static const uint32_t SOFTWARE_BUFFER_FACTOR = 2;
+
 	ILCLIENT_T* mAudioClient;
 	COMPONENT_T* mAudioRenderer;
 	COMPONENT_T* mAudioComponentList[2];
 	OMX_BUFFERHEADERTYPE* mAudioBuffer;
-	bool mFirstAudioPacket;
+	bool mBufferingAudio;
 	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mOmxAudioInputBuffers;
 	sp< mindroid::List< OMX_BUFFERHEADERTYPE* > > mOmxAudioEmptyBuffers;
 	size_t mNumAudioStretchSamples;
@@ -99,6 +105,9 @@ private:
 	bool mFirstVideoPacket;
 
 	bool mShutdown;
+	mindroid::Buffer* mHelpBuffer;
+	void writeToFile(uint8_t* data, size_t size);
+	FILE* mFile;
 };
 
 #endif /* RPIPLAYER_H_ */

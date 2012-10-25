@@ -39,6 +39,7 @@ void MediaAssembler::processMediaQueue() {
         	mFirstSeqNumberFailureTime = 0;
 			break;
 		} else if (status == SEQ_NUMBER_FAILURE) {
+			printf(".");
             if (mFirstSeqNumberFailureTime != 0) {
                 if (Clock::monotonicTime() - mFirstSeqNumberFailureTime > TIME_PERIOD_20MS) {
                 	mFirstSeqNumberFailureTime = 0;

@@ -28,7 +28,7 @@ RPiPlayer::RPiPlayer() :
 		mAudioClient(NULL),
 		mAudioRenderer(NULL),
 		mAudioBuffer(NULL),
-		mFirstAudioPacket(true),
+		mBufferingAudio(false),
 		mNumAudioStretchSamples(0),
 		mVideoClient(NULL),
 		mVideoDecoder(NULL),
@@ -37,7 +37,10 @@ RPiPlayer::RPiPlayer() :
 		mClock(NULL),
 		mPortSettingsChanged(false),
 		mFirstVideoPacket(true),
-		mShutdown(false) {
+		mShutdown(false),
+        mHelpBuffer(new Buffer(OMX_AUDIO_BUFFER_SIZE)),
+		mFile(fopen("out.raw", "wb"))
+{
 	mAudioBuffers = new List< sp<Buffer> >();
 	mVideoBuffers = new List< sp<Buffer> >();
 	mOmxAudioInputBuffers = new List<OMX_BUFFERHEADERTYPE*>();
@@ -46,7 +49,14 @@ RPiPlayer::RPiPlayer() :
 	mNetLooper->start();
 }
 
+
+void RPiPlayer::writeToFile(uint8_t* data, size_t size) {
+	fwrite(data, size, 1, mFile);
+}
+
+
 RPiPlayer::~RPiPlayer() {
+	fclose(mFile);
 }
 
 bool RPiPlayer::start(String url) {
@@ -67,11 +77,40 @@ void RPiPlayer::stop() {
 	stopMediaSource();
 }
 
+
+class ByteRate {
+public:
+    ByteRate(int delta) :
+            mBytes(0), mDelta(delta), mStartTime(0) {
+    }
+
+    void addData(size_t bytes) {
+        if (!mStartTime) {
+            mStartTime = Clock::monotonicTime();
+        }
+
+        mBytes += bytes;
+        static int count = 1;
+        if (count++ % mDelta == 0) {
+            double current = Clock::monotonicTime();
+            double dt = current - mStartTime;
+            double deltaBytes = mBytes * 1000000000.0;
+            printf("Rate: %f frames/s total: %u\n", (deltaBytes / dt), mBytes);
+        }
+    }
+    uint64_t mBytes;
+    int mDelta;
+    double mStartTime;
+};
+
 void RPiPlayer::handleMessage(const sp<Message>& message) {
 	switch (message->what) {
 	case NOTIFY_QUEUE_AUDIO_BUFFER: {
 		sp<Bundle> bundle = message->metaData();
 		sp<Buffer> buffer = bundle->getObject<Buffer>("Buffer");
+		//		static ByteRate br(1000);
+		//		br.addData(buffer->size()/4);
+		//		buffer.clear();
 		mAudioBuffers->push_back(buffer);
 		onFillAndPlayAudioBuffers();
 		break;
@@ -130,54 +169,70 @@ void RPiPlayer::stopMediaSource() {
 	}
 }
 
+
 void RPiPlayer::onFillAndPlayAudioBuffers() {
+	uint32_t curNumSamples = numOmxOwnedAudioSamples();
+	if (0 == curNumSamples) {
+		if (!mBufferingAudio) {
+			printf("rebuffering\n");
+			mBufferingAudio = true;
+		}
+	}
+
 	if (!minNumAudioSamplesAvailable()) {
 		return;
 	}
 
 	while (!mOmxAudioEmptyBuffers->empty()) {
+		uint32_t helpBufferOffset = 0;
+		List< sp<Buffer> >::iterator itr = mAudioBuffers->begin();
+		mHelpBuffer->setRange(0, OMX_AUDIO_BUFFER_SIZE - mNumAudioStretchSamples * BYTES_PER_SAMPLE);
+		while (itr != mAudioBuffers->end() && helpBufferOffset < mHelpBuffer->size()) {
+			size_t size = RPiPlayer::min((*itr)->size(), mHelpBuffer->size() - helpBufferOffset );
+
+			memcpy(mHelpBuffer->data() + helpBufferOffset, (*itr)->data(), size);
+			helpBufferOffset += size;
+			if (size == (*itr)->size()) {
+				itr = mAudioBuffers->erase(itr);
+			} else {
+				(*itr)->setRange((*itr)->offset() + size , (*itr)->size() - size);
+			}
+		}
+
+		static uint32_t stretchCount = 0;
+		stretchCount += mNumAudioStretchSamples;
+
+		//static uint32_t count = 0;
+		//if ((count++ % 100) == 0) {
+		//	printf("%u\n", stretchCount);
+		//}
+
 		OMX_BUFFERHEADERTYPE* omxBuffer = *mOmxAudioEmptyBuffers->begin();
 		mOmxAudioEmptyBuffers->erase(mOmxAudioEmptyBuffers->begin());
 		unsigned char* pBuffer = omxBuffer->pBuffer;
 
-		const size_t AUDIO_BUFFER_SIZE = OMX_AUDIO_BUFFER_SIZE - (mNumAudioStretchSamples * NUM_CHANNELS * BYTES_PER_SAMPLE);
-		sp<Buffer> audioBuffer = new Buffer(AUDIO_BUFFER_SIZE);
-		uint32_t audioBufferOffset = 0;
-		List< sp<Buffer> >::iterator itr = mAudioBuffers->begin();
-		while (itr != mAudioBuffers->end() && audioBufferOffset < AUDIO_BUFFER_SIZE) {
-			size_t size = (*itr)->size() > (audioBuffer->size() - audioBufferOffset) ? (audioBuffer->size() - audioBufferOffset) : (*itr)->size();
-			memcpy(audioBuffer->data() + audioBufferOffset, (*itr)->data(), size);
-			audioBufferOffset += size;
-			if (size == (*itr)->size()) {
-				mAudioBuffers->erase(mAudioBuffers->begin());
-			} else {
-				(*itr)->setRange((*itr)->offset() + size , (*itr)->size() - size);
-			}
-			++itr;
-		}
-
 		uint32_t omxAudioBufferOffset = 0;
-		if (mNumAudioStretchSamples == 0) {
-			memcpy(pBuffer, audioBuffer->data(), AUDIO_BUFFER_SIZE);
-			omxAudioBufferOffset += AUDIO_BUFFER_SIZE;
-		} else {
-			// The Raspberry Pi audio hardware doesn't have an exact 44100Hz clock.
-			// The audio buffer has to be stretched by some samples from time to time.
-			size_t blockSize = AUDIO_BUFFER_SIZE / mNumAudioStretchSamples;
-			for (uint32_t i = 0; i < mNumAudioStretchSamples; i++) {
-				memcpy(pBuffer + omxAudioBufferOffset, audioBuffer->data(), blockSize);
-				audioBuffer->setRange(audioBuffer->offset() + blockSize , audioBuffer->size() - blockSize);
-				omxAudioBufferOffset += blockSize;
+		if (mNumAudioStretchSamples > 0 && helpBufferOffset == OMX_AUDIO_BUFFER_SIZE) {
+			// stretch
+			size_t blockSize = helpBufferOffset / mNumAudioStretchSamples;
+			for (size_t i=0; i<mNumAudioStretchSamples; i++) {
+				// copy data
+				memcpy(pBuffer, mHelpBuffer->data(), blockSize);
+				mHelpBuffer->advance(blockSize-BYTES_PER_SAMPLE);
+				pBuffer += blockSize;
 
-				memcpy(pBuffer + omxAudioBufferOffset, audioBuffer->data() - NUM_CHANNELS * BYTES_PER_SAMPLE, NUM_CHANNELS * BYTES_PER_SAMPLE);
-				omxAudioBufferOffset += NUM_CHANNELS * BYTES_PER_SAMPLE;
+				// copy stretch sample
+				memcpy(pBuffer, mHelpBuffer->data(), BYTES_PER_SAMPLE);
+				mHelpBuffer->advance(BYTES_PER_SAMPLE);
+				pBuffer += BYTES_PER_SAMPLE;
 			}
-			assert(audioBuffer->size() == 0);
+		} else {
+			// dont stretch
+			memcpy(pBuffer, mHelpBuffer->data(), helpBufferOffset);
+			pBuffer += helpBufferOffset;
 		}
-
-		assert(omxAudioBufferOffset == OMX_AUDIO_BUFFER_SIZE);
 		omxBuffer->nOffset = 0;
-		omxBuffer->nFilledLen = omxAudioBufferOffset;
+		omxBuffer->nFilledLen = pBuffer-omxBuffer->pBuffer;
 
 		mOmxAudioInputBuffers->push_back(omxBuffer);
 		onPlayAudioBuffers();
@@ -193,6 +248,7 @@ void RPiPlayer::onPlayAudioBuffers() {
 	while (itr != mOmxAudioInputBuffers->end()) {
 		OMX_BUFFERHEADERTYPE* omxBuffer = *itr;
 		itr = mOmxAudioInputBuffers->erase(itr);
+		writeToFile(omxBuffer->pBuffer, omxBuffer->nFilledLen);
 		OMX_ERRORTYPE result = OMX_EmptyThisBuffer(ILC_GET_HANDLE(mAudioRenderer), omxBuffer);
 		assert(result == OMX_ErrorNone);
 		calcNumAudioStretchSamples();
@@ -222,9 +278,9 @@ void RPiPlayer::onPlayVideoBuffers() {
 		}
 
 		if (!mPortSettingsChanged  &&
-				((omxBufferFillLevel > 0 && ilclient_remove_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
-				 (omxBufferFillLevel == 0 && ilclient_wait_for_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
-						 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
+			((omxBufferFillLevel > 0 && ilclient_remove_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
+			 (omxBufferFillLevel == 0 && ilclient_wait_for_event(mVideoDecoder, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
+																 ILCLIENT_EVENT_ERROR | ILCLIENT_PARAMETER_CHANGED, 10000) == 0))) {
 			if (ilclient_setup_tunnel(mTunnel, 0, 0) != 0) {
 				return;
 			}
@@ -286,46 +342,47 @@ uint32_t RPiPlayer::numOmxOwnedAudioSamples() {
 	return param.nU32;
 }
 
-bool RPiPlayer::minNumAudioSamplesAvailable() {
+uint32_t RPiPlayer::numAudioSamplesAvailable() {
 	uint32_t totalBufferSize = 0;
-	List< sp<mindroid::Buffer> >::iterator itr = mAudioBuffers->begin();
+	List< sp<Buffer> >::iterator itr = mAudioBuffers->begin();
 	while (itr != mAudioBuffers->end()) {
 		totalBufferSize += (*itr)->size();
 		++itr;
 	}
+	return totalBufferSize;
+}
 
-	if (mFirstAudioPacket) {
-		if (totalBufferSize < MIN_FILLED_AUDIO_BUFFERS_AT_START * OMX_AUDIO_BUFFER_SIZE) {
+bool RPiPlayer::minNumAudioSamplesAvailable() {
+	uint32_t totalBufferSize = numAudioSamplesAvailable();
+	if (mBufferingAudio) {
+		if (totalBufferSize < NUM_OMX_AUDIO_BUFFERS  * OMX_AUDIO_BUFFER_SIZE * SOFTWARE_BUFFER_FACTOR) {
 			return false;
 		}
-		mFirstAudioPacket = false;
-	}
-	if (totalBufferSize < OMX_AUDIO_BUFFER_SIZE) {
-		return false;
+		printf("buffering done\n");
+		mBufferingAudio = false;
 	}
 	return true;
 }
 
 void RPiPlayer::calcNumAudioStretchSamples() {
+	uint32_t curNumSamples = numOmxOwnedAudioSamples();
+	if (curNumSamples < 3500 && mNumAudioStretchSamples < 8) {
+		mNumAudioStretchSamples += 4; // OMX_AUDIO_BUFFER_SIZE must be divisible by mNumAudioStretchSamples
+	} else if (curNumSamples > 4000 && mNumAudioStretchSamples > 0) {
+		mNumAudioStretchSamples -= 4; // OMX_AUDIO_BUFFER_SIZE must be divisible by mNumAudioStretchSamples
+	}
+
 	static int32_t lastTimeNumSamples = 0;
 	static int32_t diffNumSamples = 0;
 	static uint32_t count = 0;
-
-	uint32_t curNumSamples = numOmxOwnedAudioSamples();
 	diffNumSamples += (curNumSamples - lastTimeNumSamples);
 	lastTimeNumSamples = curNumSamples;
-	count++;
-	if (count == 10) {
-		if (curNumSamples < 3500 && mNumAudioStretchSamples < 8) {
-			mNumAudioStretchSamples += 4; // OMX_AUDIO_BUFFER_SIZE must be divisible by mNumAudioStretchSamples
-		} else if (curNumSamples > 4000 && mNumAudioStretchSamples > 0) {
-			mNumAudioStretchSamples -= 4; // OMX_AUDIO_BUFFER_SIZE must be divisible by mNumAudioStretchSamples
-		}
-//		printf("OMX Buffer Size: %d Samples (%d ms) => Drift: %d Samples, Stretch Level: %d Samples\n",
-//				curNumSamples,
-//				curNumSamples / (SAMPLE_RATE / 1000),
-//				diffNumSamples,
-//				mNumAudioStretchSamples);
+	if (count++ == 1000) {
+		printf("OMX Buffer Size: %d Samples (%d ms) => Drift: %d Samples, Stretch Level: %d Samples\n",
+			   curNumSamples,
+			   curNumSamples / (SAMPLE_RATE / 1000),
+			   diffNumSamples,
+			   mNumAudioStretchSamples);
 		diffNumSamples = 0;
 		count = 0;
 	}
