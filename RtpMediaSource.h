@@ -73,7 +73,7 @@ public:
 	class TcpNetReceiver : public NetReceiver
 	{
 	public:
-		TcpNetReceiver(mindroid::String hostName, uint16_t port);
+		TcpNetReceiver(sp<mindroid::String> hostName, uint16_t port);
 		virtual void run();
 		virtual void stop();
 		void setHandler(const sp<Handler>& handler) { mHandler = handler; }
@@ -96,7 +96,7 @@ public:
 		static const uint32_t ON_CONNECT_TO_SERVER_DONE = 4;
 		static const uint32_t ON_RECV_DATA = 5;
 
-		void asyncConnectToServer(sp<mindroid::Socket> socket, mindroid::String hostName, uint16_t port, uint16_t retryCounter = 0);
+		void asyncConnectToServer(sp<mindroid::Socket> socket, sp<mindroid::String> hostName, uint16_t port, uint16_t retryCounter = 0);
 		void onConnectToServerDone(const sp<mindroid::Message>& message);
 		void onConnectToServerPending(const sp<mindroid::Message>& message);
 		void onConnectToServerRetry(const sp<mindroid::Message>& message);
@@ -107,7 +107,7 @@ public:
 		sp<mindroid::Handler> mHandler;
 		sp<mindroid::Socket> mRtpSocket;
 		sp<mindroid::Socket> mRtcpSocket;
-		mindroid::String mHostName;
+		sp<mindroid::String> mHostName;
 		uint16_t mPort;
 
 		NO_COPY_CTOR_AND_ASSIGNMENT_OPERATOR(TcpNetReceiver)

@@ -33,31 +33,31 @@ RtspMediaSource::RtspMediaSource(const sp<Handler>& netHandler) :
 RtspMediaSource::~RtspMediaSource() {
 }
 
-bool RtspMediaSource::start(const String& url) {
-	if (!url.startsWith("rtsp://")) {
+bool RtspMediaSource::start(const sp<String>& url) {
+	if (!url->startsWith("rtsp://")) {
 		return false;
 	}
 
-	String mediaSource = url.substr(strlen("rtsp://"));
-	ssize_t separatorIndex = mediaSource.indexOf("/");
+	sp<String> mediaSource = url->substr(strlen("rtsp://"));
+	ssize_t separatorIndex = mediaSource->indexOf("/");
 	if  (separatorIndex > 0) {
-		mSdpFile = mediaSource.substr(separatorIndex + 1);
-		mediaSource = mediaSource.substr(0, separatorIndex);
+		mSdpFile = mediaSource->substr(separatorIndex + 1);
+		mediaSource = mediaSource->substr(0, separatorIndex);
 	} else {
 		return false;
 	}
 
-	separatorIndex = mediaSource.indexOf(":");
+	separatorIndex = mediaSource->indexOf(":");
 	if (separatorIndex > 0) {
-		mHost = mediaSource.substr(0, separatorIndex);
-		mPort = mediaSource.substr(separatorIndex + 1);
+		mHost = mediaSource->substr(0, separatorIndex);
+		mPort = mediaSource->substr(separatorIndex + 1);
 	} else {
 		mHost = mediaSource;
-		mPort = "9000";
+		mPort = new String("9000");
 	}
 
 	mSocket = new RtspSocket();
-	if (mSocket->connect(mHost.c_str(), atoi(mPort.c_str())) != 0) {
+	if (mSocket->connect(mHost->c_str(), atoi(mPort->c_str())) != 0) {
 		return false;
 	}
 
@@ -88,7 +88,7 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 			sp<Bundle> bundle = message->metaData();
 			content = bundle->getObject<Buffer>("Content");
 		}
-		if ((*rtspHeader)[String("ResultCode")] == "200") {
+		if ((*rtspHeader)[StringWrapper("ResultCode")] == "200") {
 			onDescribeMediaSource(content);
 		} else {
 			// TODO: error handling
@@ -102,8 +102,8 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	}
 	case SETUP_AUDIO_TRACK_DONE: {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;
-		if ((*rtspHeader)[String("ResultCode")] == "200") {
-			mAudioMediaSource.sessionId = *(*rtspHeader)[String("Session").toLowerCase()].split(";")->begin();
+		if ((*rtspHeader)[StringWrapper("ResultCode")] == "200") {
+			mAudioMediaSource.sessionId = (*rtspHeader)[StringWrapper("Session").toLowerCase()].split(";")->begin()->toString();
 
 			sp<Message> msg = mNetHandler->obtainMessage(NetHandler::START_AUDIO_TRACK);
 			msg->metaData()->putUInt32("Type", mAudioMediaSource.type);
@@ -126,7 +126,7 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	}
 	case PLAY_AUDIO_TRACK_DONE: {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;
-		if ((*rtspHeader)[String("ResultCode")] == "200") {
+		if ((*rtspHeader)[StringWrapper("ResultCode")] == "200") {
 			// OK
 		} else {
 			// TODO: error handling
@@ -141,16 +141,16 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	}
 	case SETUP_VIDEO_TRACK_DONE: {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;
-		if ((*rtspHeader)[String("ResultCode")] == "200") {
-			mVideoMediaSource.sessionId = *(*rtspHeader)[String("Session").toLowerCase()].split(";")->begin();
-			sp< List<String> > parts = (*rtspHeader)[String("Transport").toLowerCase()].split(";");
-			List<String>::iterator itr = parts->begin();
+		if ((*rtspHeader)[StringWrapper("ResultCode")] == "200") {
+			mVideoMediaSource.sessionId = (*rtspHeader)[StringWrapper("Session").toLowerCase()].split(";")->begin()->toString();
+			sp< List<StringWrapper> > parts = (*rtspHeader)[StringWrapper("Transport").toLowerCase()].split(";");
+			List<StringWrapper>::iterator itr = parts->begin();
 			while (itr != parts->end()) {
 				if (itr->startsWith("server_port=")) {
-					String portRange = itr->substr(String::size("server_port="));
-					sp< List<String> > ports = portRange.split("-");
+					sp<String> portRange = itr->substr(String::size("server_port=")).toString();
+					sp< List< sp<String> > > ports = portRange->split("-");
 					if (ports->size() == 2) {
-						mVideoMediaSource.serverPorts[0] = atoi(ports->begin()->c_str());
+						mVideoMediaSource.serverPorts[0] = atoi((*ports->begin())->c_str());
 						mVideoMediaSource.serverPorts[1] = mVideoMediaSource.serverPorts[0] + 1;
 					}
 				}
@@ -178,7 +178,7 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 	}
 	case PLAY_VIDEO_TRACK_DONE: {
 		RtspHeader* rtspHeader = (RtspHeader*) message->obj;
-		if ((*rtspHeader)[String("ResultCode")] == "200") {
+		if ((*rtspHeader)[StringWrapper("ResultCode")] == "200") {
 			// OK
 		} else {
 			// TODO: error handling
@@ -223,9 +223,9 @@ void RtspMediaSource::handleMessage(const sp<Message>& message) {
 
 void RtspMediaSource::describeMediaSource() {
 	setPendingRequest(mCSeq, obtainMessage(DESCRIBE_MEDIA_SOURCE));
-	String describeMessage = String::format("DESCRIBE rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\n\r\n",
-			mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++);
-	mSocket->write(describeMessage.c_str(), describeMessage.size());
+	sp<String> describeMessage = String::format("DESCRIBE rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\n\r\n",
+			mHost->c_str(), mPort->c_str(), mSdpFile->c_str(), mCSeq++);
+	mSocket->write(describeMessage->c_str(), describeMessage->size());
 }
 
 void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
@@ -233,46 +233,46 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 
 	mPendingTracks->clear();
 
-	String mediaSourceDesc((char*)desc->data(), desc->size());
-	sp< List<String> > lines = mediaSourceDesc.split("\n");
-	List<String>::iterator itr = lines->begin();
+	sp<String> mediaSourceDesc = new String((char*)desc->data(), desc->size());
+	sp< List< sp<String> > > lines = mediaSourceDesc->split("\n");
+	List< sp<String> >::iterator itr = lines->begin();
 
-	String audioMediaDesc;
-	String videoMediaDesc;
-	String mediaType;
-	String profileId;
-	String spropParams;
-	String codecConfig;
-	String transportProtocol;
+	sp<String> audioMediaDesc;
+	sp<String> videoMediaDesc;
+	sp<String> mediaType;
+	sp<String> profileId;
+	sp<String> spropParams;
+	sp<String> codecConfig;
+	sp<String>transportProtocol;
 
 	while (itr != lines->end()) {
-		String line = itr->trim();
-		if (line.startsWith("m=")) {
-			if (line.startsWith("m=audio")) {
-				sp< List<String> > strings = line.split(" ");
-				List<String>::iterator itr = strings->begin();
-				String port = *(++itr);
-				String protocol = *(++itr);
+		sp<String> line = (*itr)->trim();
+		if (line->startsWith("m=")) {
+			if (line->startsWith("m=audio")) {
+				sp< List< sp<String> > > strings = line->split(" ");
+				List< sp<String> >::iterator itr = strings->begin();
+				sp<String> port = *(++itr);
+				sp<String> protocol = *(++itr);
 				mediaType = *(++itr);
-				if (protocol.trim() == "RTP/AVP") {
+				if (protocol->trim()->equals("RTP/AVP")) {
 					audioMediaDesc = line;
-					transportProtocol = "UDP";
+					transportProtocol = new String("UDP");
 				} else {
 					audioMediaDesc = NULL;
 				}
 				videoMediaDesc = NULL;
-			} else if (line.startsWith("m=video")) {
-				sp< List<String> > strings = line.split(" ");
-				List<String>::iterator itr = strings->begin();
-				String port = *(++itr);
-				String protocol = *(++itr);
+			} else if (line->startsWith("m=video")) {
+				sp< List< sp<String> > > strings = line->split(" ");
+				List< sp<String> >::iterator itr = strings->begin();
+				sp<String> port = *(++itr);
+				sp<String> protocol = *(++itr);
 				mediaType = *(++itr);
-				if (protocol.trim() == "RTP/AVP") {
+				if (protocol->trim()->equals("RTP/AVP")) {
 					videoMediaDesc = line;
-					transportProtocol = "UDP";
-				} else if (protocol.trim() == "TCP/RTP/AVP") {
+					transportProtocol = new String("UDP");
+				} else if (protocol->trim()->equals("TCP/RTP/AVP")) {
 					videoMediaDesc = line;
-					transportProtocol = "TCP";
+					transportProtocol = new String("TCP");
 				} else {
 					videoMediaDesc = NULL;
 				}
@@ -281,54 +281,54 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 				audioMediaDesc = NULL;
 				videoMediaDesc = NULL;
 			}
-		} else if (line.startsWith("a=")) {
-			if (line.startsWith("a=fmtp:")) {
-				sp< List<String> > strings = line.split(";");
-				List<String>::iterator itr = strings->begin();
+		} else if (line->startsWith("a=")) {
+			if (line->startsWith("a=fmtp:")) {
+				sp< List< sp<String> > > strings = line->split(";");
+				List< sp<String> >::iterator itr = strings->begin();
 				while (itr != strings->end()) {
-					if (itr->trim().startsWith("profile-level-id=")) {
-						ssize_t pos = itr->indexOf("=");
-						profileId = itr->substr(pos + 1);
-					} else if (itr->trim().startsWith("sprop-parameter-sets=")) {
-						ssize_t pos = itr->indexOf("=");
-						spropParams = itr->substr(pos + 1);
-					} else if (itr->trim().startsWith("config=")) {
-						ssize_t pos = itr->indexOf("=");
-						codecConfig = itr->substr(pos + 1);
+					if ((*itr)->trim()->startsWith("profile-level-id=")) {
+						ssize_t pos = (*itr)->indexOf("=");
+						profileId = (*itr)->substr(pos + 1);
+					} else if ((*itr)->trim()->startsWith("sprop-parameter-sets=")) {
+						ssize_t pos = (*itr)->indexOf("=");
+						spropParams = (*itr)->substr(pos + 1);
+					} else if ((*itr)->trim()->startsWith("config=")) {
+						ssize_t pos = (*itr)->indexOf("=");
+						codecConfig = (*itr)->substr(pos + 1);
 					}
 					++itr;
 				}
-			} else if (line.startsWith("a=rtpmap")) {
-				sp< List<String> > strings = line.split(" ");
-				List<String>::iterator itr = strings->begin();
+			} else if (line->startsWith("a=rtpmap")) {
+				sp< List< sp<String> > > strings = line->split(" ");
+				List< sp<String> >::iterator itr = strings->begin();
 				if (strings->size() < 2) {
 					audioMediaDesc = NULL;
 					videoMediaDesc = NULL;
 				}
-				if (!audioMediaDesc.isEmpty()) {
-					String rtpmapType = *(++itr);
-					if (rtpmapType != "mpeg4-generic/44100/2" && rtpmapType != "L16/44100/2") {
+				if (audioMediaDesc != NULL && !audioMediaDesc->isEmpty()) {
+					sp<String> rtpmapType = *(++itr);
+					if (!rtpmapType->equals("mpeg4-generic/44100/2") && !rtpmapType->equals("L16/44100/2")) {
 						audioMediaDesc = NULL;
 						// TODO: add support for other audio streams
 					}
-				} else if (!videoMediaDesc.isEmpty()) {
-					if (*(++itr) != "H264/90000") {
+				} else if (videoMediaDesc != NULL && !videoMediaDesc->isEmpty()) {
+					if (!(*(++itr))->equals("H264/90000")) {
 						videoMediaDesc = NULL;
 					}
 				}
-			} else if (line.startsWith("a=control:")) {
-				if (!audioMediaDesc.isEmpty()) {
-					mAudioMediaSource.url = line.substr(String::size("a=control:")).trim();
-					mAudioMediaSource.type = atoi(mediaType.c_str());
+			} else if (line->startsWith("a=control:")) {
+				if (audioMediaDesc != NULL && !audioMediaDesc->isEmpty()) {
+					mAudioMediaSource.url = line->substr(String::size("a=control:"))->trim();
+					mAudioMediaSource.type = atoi(mediaType->c_str());
 					mAudioMediaSource.transportProtocol = transportProtocol;
 					mAudioMediaSource.profileId = profileId;
 					mAudioMediaSource.spropParams = spropParams;
 					mAudioMediaSource.codecConfig = codecConfig;
 
 					mPendingTracks->push_back(obtainMessage(SETUP_AUDIO_TRACK));
-				} else if (!videoMediaDesc.isEmpty()) {
-					mVideoMediaSource.url = line.substr(String::size("a=control:")).trim();
-					mVideoMediaSource.type = atoi(mediaType.c_str());
+				} else if (videoMediaDesc != NULL && !videoMediaDesc->isEmpty()) {
+					mVideoMediaSource.url = line->substr(String::size("a=control:"))->trim();
+					mVideoMediaSource.type = atoi(mediaType->c_str());
 					mVideoMediaSource.transportProtocol = transportProtocol;
 					mVideoMediaSource.profileId = profileId;
 					mVideoMediaSource.spropParams = spropParams;
@@ -337,11 +337,15 @@ void RtspMediaSource::onDescribeMediaSource(const sp<Buffer>& desc) {
 					mPendingTracks->push_back(obtainMessage(SETUP_VIDEO_TRACK));
 				}
 			}
-		} else if (line.startsWith("c=")) {
-			sp< List<String> > strings = line.substr(String::size("c=")).trim().split(" ");
+		} else if (line->startsWith("c=")) {
+			sp< List< sp<String> > > strings = line->substr(String::size("c="))->trim()->split(" ");
 			if (strings->size() >= 3) {
-				List<String>::iterator itr = strings->begin();
-				if (*itr++ == "IN" && *itr++ == "IP4") {
+				List< sp<String> >::iterator itr = strings->begin();
+				bool in = (*itr)->equals("IN");
+				itr++;
+				bool ip = (*itr)->equals("IP4");
+				itr++;
+				if (in && ip) {
 					mAudioMediaSource.serverIpAddress = *itr;
 					mVideoMediaSource.serverIpAddress = *itr;
 				}
@@ -369,30 +373,30 @@ void RtspMediaSource::startPendingTracks() {
 
 void RtspMediaSource::setupAudioTrack(uint16_t port) {
 	setPendingRequest(mCSeq, obtainMessage(SETUP_AUDIO_TRACK_DONE));
-	String setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
-			mAudioMediaSource.url.c_str(), mCSeq++, port, port + 1);
-	mSocket->write(setupMessage.c_str(), setupMessage.size());
+	sp<String> setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
+			mAudioMediaSource.url->c_str(), mCSeq++, port, port + 1);
+	mSocket->write(setupMessage->c_str(), setupMessage->size());
 }
 
 void RtspMediaSource::playAudioTrack() {
 	setPendingRequest(mCSeq, obtainMessage(PLAY_AUDIO_TRACK_DONE));
-	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
-			mAudioMediaSource.url.c_str(), mCSeq++, mAudioMediaSource.sessionId.c_str());
-	mSocket->write(playMessage.c_str(), playMessage.size());
+	sp<String> playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
+			mAudioMediaSource.url->c_str(), mCSeq++, mAudioMediaSource.sessionId->c_str());
+	mSocket->write(playMessage->c_str(), playMessage->size());
 }
 
 void RtspMediaSource::setupVideoTrack(uint16_t port) {
 	setPendingRequest(mCSeq, obtainMessage(SETUP_VIDEO_TRACK_DONE));
-	String setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
-			mVideoMediaSource.url.c_str(), mCSeq++, port, port + 1);
-	mSocket->write(setupMessage.c_str(), setupMessage.size());
+	sp<String> setupMessage = String::format("SETUP %s RTSP/1.0\r\nCSeq: %d\r\nTransport: RTP/AVP;unicast;client_port=%d-%d\r\n\r\n",
+			mVideoMediaSource.url->c_str(), mCSeq++, port, port + 1);
+	mSocket->write(setupMessage->c_str(), setupMessage->size());
 }
 
 void RtspMediaSource::playVideoTrack() {
 	setPendingRequest(mCSeq, obtainMessage(PLAY_VIDEO_TRACK_DONE));
-	String playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
-			mVideoMediaSource.url.c_str(), mCSeq++, mVideoMediaSource.sessionId.c_str());
-	mSocket->write(playMessage.c_str(), playMessage.size());
+	sp<String> playMessage = String::format("PLAY %s RTSP/1.0\r\nCSeq: %d\r\nRange: npt=0.000-\r\nSession: %s\r\n\r\n",
+			mVideoMediaSource.url->c_str(), mCSeq++, mVideoMediaSource.sessionId->c_str());
+	mSocket->write(playMessage->c_str(), playMessage->size());
 }
 
 void RtspMediaSource::teardownMediaSource(const sp<mindroid::Message>& reply) {
@@ -400,9 +404,9 @@ void RtspMediaSource::teardownMediaSource(const sp<mindroid::Message>& reply) {
 		sp<Message> msg = obtainMessage(TEARDOWN_AUDIO_TRACK);
 		msg->metaData()->putObject("Reply", reply);
 		setPendingRequest(mCSeq, msg);
-		String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
-				mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++, mAudioMediaSource.sessionId.c_str());
-		mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+		sp<String> teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
+				mHost->c_str(), mPort->c_str(), mSdpFile->c_str(), mCSeq++, mAudioMediaSource.sessionId->c_str());
+		mSocket->write(teardownMessage->c_str(), teardownMessage->size());
 
 		// Tear down the audio track if we do not receive a response within 2 seconds.
 		sendMessageDelayed(msg, TIMEOUT_2_SECONDS);
@@ -411,9 +415,9 @@ void RtspMediaSource::teardownMediaSource(const sp<mindroid::Message>& reply) {
 		sp<Message> msg = obtainMessage(TEARDOWN_VIDEO_TRACK);
 		msg->metaData()->putObject("Reply", reply);
 		setPendingRequest(mCSeq, msg);
-		String teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
-				mHost.c_str(), mPort.c_str(), mSdpFile.c_str(), mCSeq++, mVideoMediaSource.sessionId.c_str());
-		mSocket->write(teardownMessage.c_str(), teardownMessage.size());
+		sp<String> teardownMessage = String::format("TEARDOWN rtsp://%s:%s/%s RTSP/1.0\r\nCSeq: %d\r\nSession: %s\r\n\r\n",
+				mHost->c_str(), mPort->c_str(), mSdpFile->c_str(), mCSeq++, mVideoMediaSource.sessionId->c_str());
+		mSocket->write(teardownMessage->c_str(), teardownMessage->size());
 
 		// Tear down the video track if we do not receive a response within 2 seconds.
 		sendMessageDelayed(msg, TIMEOUT_2_SECONDS);
@@ -448,12 +452,12 @@ void RtspMediaSource::NetReceiver::run() {
 		bool result = mSocket->readPacketHeader(rtspHeader);
 		if (result) {
 			if (rtspHeader != NULL && !rtspHeader->empty()) {
-				if ((*rtspHeader)[String("ResultCode")] == "200") {
-					uint32_t seqNum = atoi((*rtspHeader)[String("CSeq").toLowerCase()]);
+				if ((*rtspHeader)[StringWrapper("ResultCode")] == "200") {
+					uint32_t seqNum = atoi((*rtspHeader)[StringWrapper("CSeq").toLowerCase()]);
 					sp<Message> reply = mMediaSource->removePendingRequest(seqNum);
 					reply->obj = rtspHeader;
 
-					String strContentLength = (*rtspHeader)[String("Content-Length").toLowerCase()];
+					StringWrapper strContentLength = (*rtspHeader)[StringWrapper("Content-Length").toLowerCase()];
 					if (strContentLength != NULL) {
 						size_t contentLength = atoi(strContentLength.c_str());
 						if (contentLength > 0) {
@@ -467,7 +471,7 @@ void RtspMediaSource::NetReceiver::run() {
 
 					reply->sendToTarget();
 				} else {
-					if ((*rtspHeader)[String("ResultCode")] == "404") {
+					if ((*rtspHeader)[StringWrapper("ResultCode")] == "404") {
 						printf("RTSP media source is not available.\n");
 					}
 					mMediaSource->obtainMessage(MEDIA_SOURCE_HAS_QUIT)->sendToTarget();

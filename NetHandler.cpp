@@ -74,15 +74,15 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 	case START_VIDEO_TRACK: {
 		uint32_t videoType;
 		message->metaData()->fillUInt32("Type", videoType);
-		String transportProtocol;
+		sp<String> transportProtocol;
 		message->metaData()->fillString("TransportProtocol", transportProtocol);
-		String serverIpAddress;
+		sp<String> serverIpAddress;
 		message->metaData()->fillString("ServerIpAddress", serverIpAddress);
 		uint16_t serverPort;
 		message->metaData()->fillUInt16("ServerPorts", serverPort);
-		String profileId;
+		sp<String> profileId;
 		message->metaData()->fillString("ProfileId", profileId);
-		String spropParams;
+		sp<String> spropParams;
 		message->metaData()->fillString("SpropParams", spropParams);
 
 		if (videoType == AVC_VIDEO_TYPE_1 || videoType == AVC_VIDEO_TYPE_2) {
@@ -100,7 +100,7 @@ void NetHandler::handleMessage(const sp<Message>& message) {
 			ppsBundle->putObject("Access-Unit", pps);
 			ppsMessage->sendToTarget();
 
-			if (transportProtocol == "UDP") {
+			if (transportProtocol->equals("UDP")) {
 				mRtpVideoSource = new RtpMediaSource(new RtpMediaSource::UdpNetReceiver(RTP_VIDEO_SOURCE_PORT));
 			} else {
 				mRtpVideoSource = new RtpMediaSource(new RtpMediaSource::TcpNetReceiver(serverIpAddress, serverPort));

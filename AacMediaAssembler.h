@@ -19,7 +19,6 @@
 
 #include "MediaAssembler.h"
 #include <mindroid/util/List.h>
-#include <mindroid/lang/String.h>
 
 namespace mindroid {
 class Message;

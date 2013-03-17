@@ -45,13 +45,13 @@ public:
 
 	RPiPlayer();
 	virtual ~RPiPlayer();
-	bool start(mindroid::String url);
+	bool start(const sp<mindroid::String>& url);
 	void stop();
 
 	virtual void handleMessage(const sp<mindroid::Message>& message);
 
 private:
-	bool startMediaSource(const mindroid::String& url);
+	bool startMediaSource(const sp<mindroid::String>& url);
 	void stopMediaSource();
 	int initOMXAudio();
 	bool setAudioSink(const char* sinkName);

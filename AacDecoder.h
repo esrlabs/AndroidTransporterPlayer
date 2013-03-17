@@ -31,7 +31,7 @@ using mindroid::sp;
 class AacDecoder :
 		public mindroid::Ref {
 public:
-	AacDecoder(const mindroid::String& codecConfig, const sp<mindroid::Message>& notifyBuffer);
+	AacDecoder(const sp<mindroid::String>& codecConfig, const sp<mindroid::Message>& notifyBuffer);
 	virtual ~AacDecoder();
 	void processBuffer(sp<mindroid::Buffer> buffer);
 

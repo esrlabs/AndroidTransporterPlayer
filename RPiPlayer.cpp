@@ -55,7 +55,7 @@ RPiPlayer::RPiPlayer() :
 RPiPlayer::~RPiPlayer() {
 }
 
-bool RPiPlayer::start(String url) {
+bool RPiPlayer::start(const sp<String>& url) {
 	bcm_host_init();
 
 	if (OMX_Init() != OMX_ErrorNone) {
@@ -117,7 +117,7 @@ void RPiPlayer::handleMessage(const sp<Message>& message) {
 	}
 }
 
-bool RPiPlayer::startMediaSource(const String& url) {
+bool RPiPlayer::startMediaSource(const sp<String>& url) {
 	sp<Message> message = mNetLooper->getHandler()->obtainMessage(NetHandler::START_MEDIA_SOURCE);
 	sp<Bundle> bundle = message->metaData();
 	bundle->putObject("Player", this);

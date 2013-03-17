@@ -21,7 +21,7 @@
 
 using namespace mindroid;
 
-AacDecoder::AacDecoder(const String& codecConfig, const sp<mindroid::Message>& notifyBuffer) :
+AacDecoder::AacDecoder(const sp<String>& codecConfig, const sp<mindroid::Message>& notifyBuffer) :
 		mNotifyBuffer(notifyBuffer) {
 	mAacDecoder = aacDecoder_Open(TT_MP4_RAW, 1);
 	aacDecoder_SetParam(mAacDecoder, AAC_PCM_OUTPUT_INTERLEAVED, 1);

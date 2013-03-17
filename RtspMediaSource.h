@@ -49,21 +49,21 @@ public:
 	static const uint32_t MEDIA_SOURCE_HAS_QUIT = 12;
 
 	struct MediaSource {
-		mindroid::String url;
+		sp<mindroid::String> url;
 		uint32_t type;
-		mindroid::String transportProtocol;
-		mindroid::String serverIpAddress;
+		sp<mindroid::String> transportProtocol;
+		sp<mindroid::String> serverIpAddress;
 		uint16_t serverPorts[2];
-		mindroid::String sessionId;
-		mindroid::String profileId;
-		mindroid::String spropParams;
-		mindroid::String codecConfig;
+		sp<mindroid::String> sessionId;
+		sp<mindroid::String> profileId;
+		sp<mindroid::String> spropParams;
+		sp<mindroid::String> codecConfig;
 	};
 
 	RtspMediaSource(const sp<mindroid::Handler>& netHandler);
 	virtual ~RtspMediaSource();
 
-	bool start(const mindroid::String& url);
+	bool start(const sp<mindroid::String>& url);
 	void stop(const sp<mindroid::Message>& reply);
 
 	virtual void handleMessage(const sp<mindroid::Message>& message);
@@ -102,9 +102,9 @@ private:
 	sp<mindroid::Handler> mNetHandler;
 	sp<NetReceiver> mNetReceiver;
 	sp<RtspSocket> mSocket;
-	mindroid::String mHost;
-	mindroid::String mPort;
-	mindroid::String mSdpFile;
+	sp<mindroid::String> mHost;
+	sp<mindroid::String> mPort;
+	sp<mindroid::String> mSdpFile;
 	MediaSource mAudioMediaSource;
 	MediaSource mVideoMediaSource;
 	uint32_t mCSeq;

@@ -120,7 +120,7 @@ void RtpMediaSource::UdpNetReceiver::run() {
 	}
 }
 
-RtpMediaSource::TcpNetReceiver::TcpNetReceiver(String hostName, uint16_t port) :
+RtpMediaSource::TcpNetReceiver::TcpNetReceiver(sp<String> hostName, uint16_t port) :
 		mLooper(NULL),
 		mHostName(hostName),
 		mPort(port) {
@@ -150,12 +150,12 @@ void RtpMediaSource::TcpNetReceiver::run() {
 	mLooper = Looper::myLooper();
 	sp<TcpNetReceiverHandler> handler = new TcpNetReceiverHandler(this);
 	setHandler(handler);
-	sp<Runnable> runnable = newRunnable(*this, &TcpNetReceiver::asyncConnectToServer, sp<Socket>(new Socket()), mHostName, mPort, (uint16_t)0);
+	sp<Runnable> runnable = obtainClosure(*this, &TcpNetReceiver::asyncConnectToServer, sp<Socket>(new Socket()), mHostName, mPort, (uint16_t)0);
 	handler->post(runnable);
 	Looper::loop();
 }
 
-void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, String hostName, uint16_t port, uint16_t retryCounter) {
+void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, sp<String> hostName, uint16_t port, uint16_t retryCounter) {
 	// We saw some drops when working with standard buffer sizes, so give the sockets 256KB buffer.
 	int size = 256 * 1024;
 	setsockopt(socket->getId(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
@@ -169,7 +169,7 @@ void RtpMediaSource::TcpNetReceiver::asyncConnectToServer(sp<Socket> socket, Str
 	metaData->putUInt16("Port", port);
 	metaData->putUInt16("RetryCounter", retryCounter);
 
-	int rc = socket->connect(hostName.c_str(), port);
+	int rc = socket->connect(hostName->c_str(), port);
 	if (rc < 0) {
 		if (errno == EINPROGRESS) {
 			reply->what = ON_CONNECT_TO_SERVER_PENDING;
@@ -250,22 +250,22 @@ void RtpMediaSource::TcpNetReceiver::onConnectToServerRetry(const sp<Message>& m
 	socket->close();
 	socket.clear();
 
-	String hostName = message->metaData()->getString("HostName");
+	sp<String> hostName = message->metaData()->getString("HostName");
 	uint16_t port;
 	message->metaData()->fillUInt16("Port", port);
 	asyncConnectToServer(new Socket(), hostName, port, retryCounter);
 }
 
 void RtpMediaSource::TcpNetReceiver::onConnectToServerError(const sp<Message>& message) {
-	String hostName = message->metaData()->getString("HostName");
+	sp<String> hostName = message->metaData()->getString("HostName");
 	uint16_t port;
 	message->metaData()->fillUInt16("Port", port);
-	printf("Cannot connect to %s:%d\n", hostName.c_str(), port);
+	printf("Cannot connect to %s:%d\n", hostName->c_str(), port);
 }
 
 void RtpMediaSource::TcpNetReceiver::onConnectToServerDone(const sp<Message>& message) {
 	sp<Socket> socket = message->metaData()->getObject<Socket>("Socket");
-	String hostName = message->metaData()->getString("HostName");
+	sp<String> hostName = message->metaData()->getString("HostName");
 	uint16_t port;
 	message->metaData()->fillUInt16("Port", port);
 

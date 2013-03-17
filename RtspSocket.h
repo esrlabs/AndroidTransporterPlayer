@@ -19,9 +19,12 @@
 
 #include "mindroid/net/Socket.h"
 #include "mindroid/lang/String.h"
+#include "mindroid/lang/StringWrapper.h"
 #include <map>
 
-typedef std::map<mindroid::String, mindroid::String> RtspHeader;
+typedef std::map<mindroid::StringWrapper, mindroid::StringWrapper> RtspHeader;
+
+using mindroid::sp;
 
 class RtspSocket :
 	public mindroid::Socket
@@ -31,7 +34,7 @@ public:
 	RtspSocket();
 	RtspSocket(const char* host, uint16_t port);
 	virtual ~RtspSocket() {}
-	bool readLine(mindroid::String& result);
+	bool readLine(sp<mindroid::String>& result);
 	bool readPacketHeader(RtspHeader*& rtspHeader);
 
 private:

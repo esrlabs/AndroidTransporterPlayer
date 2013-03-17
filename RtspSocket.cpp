@@ -15,6 +15,7 @@
  */
 
 #include "RtspSocket.h"
+#include <stdio.h>
 #include <sys/socket.h>
 #include "mindroid/util/List.h"
 
@@ -30,9 +31,9 @@ RtspSocket::RtspSocket(const char* host, uint16_t port) :
 	connect(host, port);
 }
 
-bool RtspSocket::readLine(String& result) {
+bool RtspSocket::readLine(sp<String>& result) {
 	int32_t resultCode = 0;
-	String line;
+	StringWrapper line;
 	char character;
 	bool CR = false;
 	bool LF = false;
@@ -43,7 +44,7 @@ bool RtspSocket::readLine(String& result) {
 				CR = true;
 			} else if (CR && character == '\n') {
 				LF = true;
-				result = line.trim();
+				result = line.toString()->trim();
 			} else {
 				CR = false;
 				LF = false;
@@ -59,40 +60,41 @@ bool RtspSocket::readLine(String& result) {
 bool RtspSocket::readPacketHeader(RtspHeader*& rtspHeader) {
 	rtspHeader = new RtspHeader();
 	bool resultCode;
-	String line;
+	sp<String> line;
 	do {
 		resultCode = readLine(line);
-		if (resultCode && line.size() > 0) {
+		if (resultCode && line->size() > 0) {
 			if (rtspHeader->empty()) {
-				sp< List<String> > resultCode = line.split(" ");
+				sp< List< sp<String> > > resultCode = line->split(" ");
 				if (resultCode->size() < 2) {
 					delete rtspHeader;
 					rtspHeader = NULL;
 					return false;
 				} else {
-					List<String>::iterator itr = resultCode->begin();
-					if (itr->trim() != "RTSP/1.0") {
+					List< sp<String> >::iterator itr = resultCode->begin();
+					if (!(*itr)->trim()->equals("RTSP/1.0")) {
 						delete rtspHeader;
 						rtspHeader = NULL;
 						return false;
 					} else {
 						++itr;
-						(*rtspHeader)[String("ResultCode")] = itr->trim();
+						(*rtspHeader)[StringWrapper("ResultCode")] = StringWrapper((*itr)->trim());
 					}
 				}
 			} else {
-				ssize_t pos = line.indexOf(":");
-				String key, value;
+				ssize_t pos = line->indexOf(":");
+				sp<String> key;
+				sp<String> value;
 				if (pos >= 0) {
-					key = line.substr(0, pos).trim().toLowerCase();
-					value = line.substr(pos + 1).trim();
+					key = line->substr(0, pos)->trim()->toLowerCase();
+					value = line->substr(pos + 1)->trim();
 				}
-				if (!value.isNull()) {
+				if (!value->isEmpty()) {
 					(*rtspHeader)[key] = value;
 				}
 			}
 		}
-	} while (resultCode && line.size() > 0);
+	} while (resultCode && line->size() > 0);
 
 	if (!resultCode) {
 		delete rtspHeader;

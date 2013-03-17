@@ -32,9 +32,9 @@ using mindroid::sp;
 /* Utility functions for codec specific data */
 class CsdUtils {
 public:
-	static sp<mindroid::Buffer> hexStringToByteArray(const mindroid::String& hexString);
-	static sp<mindroid::Buffer> decodeBase64String(const mindroid::String& string);
-	static void buildAvcCodecSpecificData(const mindroid::String strProfileId, const mindroid::String strSpropParamSet, sp<mindroid::Buffer>* sps, sp<mindroid::Buffer>* pps);
+	static sp<mindroid::Buffer> hexStringToByteArray(const sp<mindroid::String>& hexString);
+	static sp<mindroid::Buffer> decodeBase64String(const sp<mindroid::String>& string);
+	static void buildAvcCodecSpecificData(const sp<mindroid::String>& strProfileId, const sp<mindroid::String>& strSpropParamSet, sp<mindroid::Buffer>* sps, sp<mindroid::Buffer>* pps);
 
 private:
 	static void getAvcDimensions(const sp<mindroid::Buffer>& seqParamSet, int32_t* width, int32_t* height);

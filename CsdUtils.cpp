@@ -23,26 +23,26 @@
 
 using namespace mindroid;
 
-sp<Buffer> CsdUtils::hexStringToByteArray(const String& hexString) {
-	size_t byteArraySize = hexString.size() / 2;
+sp<Buffer> CsdUtils::hexStringToByteArray(const sp<String>& hexString) {
+	size_t byteArraySize = hexString->size() / 2;
 	sp<Buffer> byteArray = new Buffer(byteArraySize);
-	for(size_t i = 0; i < hexString.size(); i += 2) {
-		byteArray->data()[i / 2] = (uint8_t) strtol(hexString.substr(i, i + 2), NULL, 16);
+	for(size_t i = 0; i < hexString->size(); i += 2) {
+		byteArray->data()[i / 2] = (uint8_t) strtol(hexString->substr(i, i + 2)->c_str(), NULL, 16);
 	}
 	return byteArray;
 }
 
-sp<Buffer> CsdUtils::decodeBase64String(const String& string) {
-    size_t size = string.size();
+sp<Buffer> CsdUtils::decodeBase64String(const sp<String>& string) {
+    size_t size = string->size();
     if ((size % 4) != 0) {
         return NULL;
     }
 
     size_t padding = 0;
-    if (size >= 1 && string.c_str()[size - 1] == '=') {
+    if (size >= 1 && string->c_str()[size - 1] == '=') {
         padding = 1;
 
-        if (size >= 2 && string.c_str()[size - 2] == '=') {
+        if (size >= 2 && string->c_str()[size - 2] == '=') {
             padding = 2;
         }
     }
@@ -54,7 +54,7 @@ sp<Buffer> CsdUtils::decodeBase64String(const String& string) {
     size_t j = 0;
     uint32_t accumulator = 0;
     for (size_t i = 0; i < size; ++i) {
-        char c = string.c_str()[i];
+        char c = string->c_str()[i];
         unsigned value;
         if (c >= 'A' && c <= 'Z') {
             value = c - 'A';
@@ -91,7 +91,7 @@ sp<Buffer> CsdUtils::decodeBase64String(const String& string) {
     return buffer;
 }
 
-void CsdUtils::buildAvcCodecSpecificData(const String strProfileId, const String strSpropParamSet, sp<Buffer>* sps, sp<Buffer>* pps) {
+void CsdUtils::buildAvcCodecSpecificData(const sp<String>& strProfileId, const sp<String>& strSpropParamSet, sp<Buffer>* sps, sp<Buffer>* pps) {
 	sp<Buffer> profileId = hexStringToByteArray(strProfileId);
 
 	sp<Buffer> paramSets[8];
@@ -103,10 +103,10 @@ void CsdUtils::buildAvcCodecSpecificData(const String strProfileId, const String
 
 	size_t startPos = 0;
 	for (;;) {
-		ssize_t commaPos = strSpropParamSet.indexOf(",", startPos);
-		size_t endPos = (commaPos < 0) ? strSpropParamSet.size() : commaPos;
+		ssize_t commaPos = strSpropParamSet->indexOf(",", startPos);
+		size_t endPos = (commaPos < 0) ? strSpropParamSet->size() : commaPos;
 
-		String strNalUnit(strSpropParamSet.substr(startPos, endPos));
+		sp<String> strNalUnit = strSpropParamSet->substr(startPos, endPos);
 		sp<Buffer> nalUnit = decodeBase64String(strNalUnit);
 		uint8_t nalType = nalUnit->data()[0] & 0x1F;
 		if (numSeqParameterSets == 0) {

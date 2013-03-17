@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 	}
 	Looper::prepare();
 	rpiPlayer = new RPiPlayer();
-	rpiPlayer->start(String(argv[1]));
+	rpiPlayer->start(new String(argv[1]));
 	Looper::loop();
 
 	return 0;
