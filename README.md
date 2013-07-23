@@ -8,7 +8,7 @@
     mkdir Projects
     cd Projects
     git clone https://github.com/esrlabs/AndroidTransporterPlayer.git
-    git clone https://github.com/esrlabs/Mindroid.git
+    git clone https://github.com/esrlabs/Mindroid.cpp.git Mindroid
     git clone https://github.com/esrlabs/fdk-aac.git
     cd Mindroid
     make -f Makefile.RPi
