@@ -20,13 +20,13 @@
     cd ..
     cd AndroidTransporterPlayer
     make -f Makefile.RPi
-    ./AndroidTransporterPlayer rtsp://<IP-Address>:9000/test.sdp
+    ./AndroidTransporterPlayer rtsp://&lt;IP-Address&gt;:9000/test.sdp
 
 ###Usage
 &lt;IP-Address&gt; is always the IP address of the VLC streaming server.
 
 #### Raspberry Pi media player
-/home/pi/AndroidTransporterPlayer/AndroidTransporterPlayer rtsp://<IP-Address>:9000/test.sdp
+/home/pi/AndroidTransporterPlayer/AndroidTransporterPlayer rtsp://&lt;IP-Address&gt;:9000/test.sdp
 
 #### VLC streaming server
 vlc &lt;video&gt;.mp4 --sout '#rtp{sdp=rtsp://&lt;IP-Address&gt;:9000/test.sdp}' --rtsp-timeout=-1
