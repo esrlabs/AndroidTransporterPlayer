@@ -2,6 +2,7 @@
 
 ### Demo video
 [![Android Transporter Player demo](http://img.youtube.com/vi/PsLb-nDXUyQ/0.jpg)](http://www.youtube.com/watch?v=PsLb-nDXUyQ)
+Take a look at the [Android Transporter blog post](http://esrlabs.com/android-transporter-for-the-nexus-7-and-the-raspberry-pi/) for more information.
 
 ### Setup
     sudo apt-get install git-core
@@ -26,13 +27,11 @@
     ./AndroidTransporterPlayer rtsp://<IP-Address>:9000/test.sdp
 
 ### Usage
-Take a look at the [Android Transporter blog post](http://esrlabs.com/android-transporter-for-the-nexus-7-and-the-raspberry-pi/) for more information.
+&lt;IP-Address&gt; is always the IP address of the VLC streaming server.
 
 #### Raspberry Pi media player
-&lt;IP-Address&gt; is always the IP address of the VLC streaming server.
 /home/pi/AndroidTransporterPlayer/AndroidTransporterPlayer rtsp://&lt;IP-Address&gt;:9000/test.sdp
 
 #### VLC streaming server
-&lt;IP-Address&gt; is always the IP address of the VLC streaming server.
 vlc &lt;video&gt;.mp4 --sout '#rtp{sdp=rtsp://&lt;IP-Address&gt;:9000/test.sdp}' --rtsp-timeout=-1
 
