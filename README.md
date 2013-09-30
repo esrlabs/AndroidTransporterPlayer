@@ -1,5 +1,6 @@
 ## The AndroidTransporterPlayer is a media player for the Raspberry Pi
 
+### Demo video
 [![Android Transporter Player demo](http://img.youtube.com/vi/PsLb-nDXUyQ/0.jpg)](http://www.youtube.com/watch?v=PsLb-nDXUyQ)
 
 ### Setup
@@ -24,7 +25,7 @@
     make -f Makefile.RPi
     ./AndroidTransporterPlayer rtsp://<IP-Address>:9000/test.sdp
 
-###Usage
+### Usage
 Take a look at the [Android Transporter blog post](http://esrlabs.com/android-transporter-for-the-nexus-7-and-the-raspberry-pi/) for more information.
 
 #### Raspberry Pi media player
