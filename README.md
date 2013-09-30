@@ -25,7 +25,7 @@
     ./AndroidTransporterPlayer rtsp://<IP-Address>:9000/test.sdp
 
 ###Usage
-Take a look at the blog post about the [Android Transporter (http://esrlabs.com/android-transporter-for-the-nexus-7-and-the-raspberry-pi/)](http://esrlabs.com/android-transporter-for-the-nexus-7-and-the-raspberry-pi/) for more information.
+Take a look at the blog post about the [Android Transporter](http://esrlabs.com/android-transporter-for-the-nexus-7-and-the-raspberry-pi/) for more information.
 
 #### Raspberry Pi media player
 &lt;IP-Address&gt; is always the IP address of the VLC streaming server.
